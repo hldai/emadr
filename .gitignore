@@ -77,3 +77,17 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+Debug/
+Release/
+x64/
+.vs/
+entity_embedding/Debug/
+entity_embedding/Release/
+entity_embedding/x64/
+*.sdf
+*.sln
+*.opendb
+*.vcxproj
+*.filters
+
