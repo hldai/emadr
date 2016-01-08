@@ -13,7 +13,7 @@ public:
 		const char *doc_words_file_name);
 	~JointTrainer();
 
-	void JointTrainingThreaded(int vec_dim, int num_rounds, int num_threads, int num_negative_samples,
+	void JointTrainingThreaded(int entity_vec_dim, int word_vec_dim, int doc_vec_dim, int num_rounds, int num_threads, int num_negative_samples,
 		const char *dst_doc_vec_file_name);
 	void JointTraining(int seed, int num_rounds, int num_samples_per_round, std::discrete_distribution<int> &ee_edge_sample_dist,
 		std::discrete_distribution<int> &de_edge_sample_dist, std::discrete_distribution<int> &dw_edge_sample_dist, std::discrete_distribution<int> &net_sample_dist,
@@ -39,7 +39,6 @@ private:
 	// Entity net
 	EdgeNet entity_net_;
 	int num_entities_ = 0;
-	int ee_vec_dim_ = 0;
 
 	//std::discrete_distribution<int> ee_edge_sample_dist_;
 	std::discrete_distribution<int> entity_sample_dist_;
@@ -53,10 +52,14 @@ private:
 	float **ee_vecs0_ = 0;
 	float **ee_vecs1_ = 0;
 
-	float **ed_vecs_ = 0;
+	float **doc_vecs_ = 0;
 
 	float **word_vecs_ = 0;
 	std::discrete_distribution<int> word_sample_dist_;
+
+	int entity_vec_dim_ = 0;
+	int word_vec_dim_ = 0;
+	int doc_vec_dim_ = 0;
 };
 
 #endif

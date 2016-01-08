@@ -57,14 +57,16 @@ JointTrainer::~JointTrainer()
 	if (ee_vecs1_ != 0)
 		MemUtils::Release(ee_vecs1_, entity_net_.num_vertices_left);
 
-	if (ed_vecs_ != 0)
-		MemUtils::Release(ed_vecs_, num_docs_);
+	if (doc_vecs_ != 0)
+		MemUtils::Release(doc_vecs_, num_docs_);
 }
 
-void JointTrainer::JointTrainingThreaded(int vec_dim, int num_rounds, int num_threads, 
-	int num_negative_samples, const char * dst_doc_vec_file_name)
+void JointTrainer::JointTrainingThreaded(int entity_vec_dim, int word_vec_dim, int doc_vec_dim, 
+	int num_rounds, int num_threads, int num_negative_samples, const char * dst_doc_vec_file_name)
 {
-	ee_vec_dim_ = vec_dim;
+	entity_vec_dim_ = entity_vec_dim;
+	word_vec_dim_ = word_vec_dim;
+	doc_vec_dim_ = doc_vec_dim;
 
 	std::discrete_distribution<int> ee_edge_sample_dist(entity_net_.weights,
 		entity_net_.weights + entity_net_.num_edges);
@@ -74,24 +76,27 @@ void JointTrainer::JointTrainingThreaded(int vec_dim, int num_rounds, int num_th
 		doc_word_net_.weights + doc_word_net_.num_edges);
 
 	printf("initing model....\n");
-	ee_vecs0_ = NegativeSamplingTrainer::GetInitedVecs0(num_entities_, ee_vec_dim_);
-	ee_vecs1_ = NegativeSamplingTrainer::GetInitedVecs1(num_entities_, ee_vec_dim_);
-	ed_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, ee_vec_dim_);
-	word_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_words_, ee_vec_dim_);
+	ee_vecs0_ = NegativeSamplingTrainer::GetInitedVecs0(num_entities_, entity_vec_dim_);
+	ee_vecs1_ = NegativeSamplingTrainer::GetInitedVecs1(num_entities_, entity_vec_dim_);
+	doc_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, doc_vec_dim_);
+	word_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_words_, word_vec_dim_);
 	ExpTable exp_table;
-	NegativeSamplingTrainer entity_ns_trainer(&exp_table, ee_vec_dim_, num_entities_, 
+	NegativeSamplingTrainer entity_ns_trainer(&exp_table, entity_vec_dim_, num_entities_, 
 		num_negative_samples, &entity_sample_dist_);
-	NegativeSamplingTrainer word_ns_trainer(&exp_table, ee_vec_dim_, num_words_, 
+	NegativeSamplingTrainer word_ns_trainer(&exp_table, word_vec_dim_, num_words_,
 		num_negative_samples, &word_sample_dist_);
 	printf("inited.\n");
 
 	int sum_ee_edge_weights = MathUtils::Sum(entity_net_.weights, entity_net_.num_edges);
 	int sum_de_edge_weights = MathUtils::Sum(entity_doc_net_.weights, entity_doc_net_.num_edges);
 	int sum_dw_edge_weights = MathUtils::Sum(doc_word_net_.weights, doc_word_net_.num_edges);
-	int num_samples_per_round = sum_ee_edge_weights + sum_de_edge_weights + sum_dw_edge_weights;
+	int sum_weights = sum_ee_edge_weights + sum_de_edge_weights + sum_dw_edge_weights;
+	int num_samples_per_round = sum_weights;
 	//int num_samples_per_round = sum_ee_edge_weights + sum_de_edge_weights;
 
-	std::discrete_distribution<int> net_sample_dist{ 0.4, 0.4, 0.4 };
+	printf("net distribution: %f %f %f\n", (float)sum_ee_edge_weights / sum_weights,
+		(float)sum_de_edge_weights / sum_weights, (float)sum_dw_edge_weights / sum_weights);
+	std::discrete_distribution<int> net_sample_dist{ 0.157, 0.077, 0.766 };
 
 	int seeds[] = { 317, 7, 31, 297 };
 	std::thread *threads = new std::thread[num_threads];
@@ -109,7 +114,7 @@ void JointTrainer::JointTrainingThreaded(int vec_dim, int num_rounds, int num_th
 		threads[i].join();
 	printf("\n");
 
-	IOUtils::SaveVectors(ed_vecs_, ee_vec_dim_, num_docs_, dst_doc_vec_file_name);
+	IOUtils::SaveVectors(doc_vecs_, doc_vec_dim_, num_docs_, dst_doc_vec_file_name);
 }
 
 
@@ -122,7 +127,9 @@ void JointTrainer::JointTraining(int seed, int num_rounds, int num_samples_per_r
 
 	const float starting_alpha_ = 0.025f;
 
-	float *tmp_neu1e = new float[ee_vec_dim_];
+	float *tmp_entity_neu1e = new float[entity_vec_dim_];
+	float *tmp_word_neu1e = new float[word_vec_dim_];
+
 	float alpha = starting_alpha_;  // TODO
 	for (int i = 0; i < num_rounds; ++i)
 	{
@@ -140,43 +147,44 @@ void JointTrainer::JointTraining(int seed, int num_rounds, int num_samples_per_r
 				int edge_idx = ee_edge_sample_dist(generator);
 				Edge &edge = entity_net_.edges[edge_idx];
 				entity_ns_trainer.TrainPrediction(ee_vecs0_[edge.va], edge.vb, ee_vecs1_,
-					alpha, tmp_neu1e, generator);
+					alpha, tmp_entity_neu1e, generator);
 				entity_ns_trainer.TrainPrediction(ee_vecs0_[edge.vb], edge.va, ee_vecs1_,
-					alpha, tmp_neu1e, generator);
+					alpha, tmp_entity_neu1e, generator);
 			}
 			else if (net_idx == 1)
 			{
 				int edge_idx = de_edge_sample_dist(generator);
 				Edge &edge = entity_doc_net_.edges[edge_idx];
-				entity_ns_trainer.TrainPrediction(ed_vecs_[edge.va], edge.vb, ee_vecs0_,
-					alpha, tmp_neu1e, generator);
+				entity_ns_trainer.TrainPrediction(doc_vecs_[edge.va], edge.vb, ee_vecs0_,
+					alpha, tmp_entity_neu1e, generator);
 			}
 			else
 			{
 				int edge_idx = dw_edge_sample_dist(generator);
 				Edge &edge = doc_word_net_.edges[edge_idx];
-				word_ns_trainer.TrainPrediction(ed_vecs_[edge.va], edge.vb, word_vecs_, alpha, tmp_neu1e, generator);
-
+				word_ns_trainer.TrainPrediction(doc_vecs_[edge.va] + doc_vec_dim_ - word_vec_dim_, edge.vb, word_vecs_, 
+					alpha, tmp_word_neu1e, generator);
 			}
 		}
 	}
 
-	delete[] tmp_neu1e;
+	delete[] tmp_entity_neu1e;
+	delete[] tmp_word_neu1e;
 }
 
 void JointTrainer::TrainEntityNetThreaded(int vec_dim, int num_rounds, int num_threads, int num_negative_samples,
 	const char *dst_input_vec_file_name, const char *dst_output_vecs_file_name)
 {
-	ee_vec_dim_ = vec_dim;
+	entity_vec_dim_ = vec_dim;
 
 	std::discrete_distribution<int> ee_edge_sample_dist = std::discrete_distribution<int>(entity_net_.weights,
 		entity_net_.weights + entity_net_.num_edges);
 
 	printf("initing model....\n");
-	ee_vecs0_ = NegativeSamplingTrainer::GetInitedVecs0(num_entities_, ee_vec_dim_);
-	ee_vecs1_ = NegativeSamplingTrainer::GetInitedVecs1(num_entities_, ee_vec_dim_);
+	ee_vecs0_ = NegativeSamplingTrainer::GetInitedVecs0(num_entities_, entity_vec_dim_);
+	ee_vecs1_ = NegativeSamplingTrainer::GetInitedVecs1(num_entities_, entity_vec_dim_);
 	ExpTable exp_table;
-	NegativeSamplingTrainer ns_trainer(&exp_table, ee_vec_dim_, num_entities_, num_negative_samples, &entity_sample_dist_);
+	NegativeSamplingTrainer ns_trainer(&exp_table, entity_vec_dim_, num_entities_, num_negative_samples, &entity_sample_dist_);
 	printf("inited.\n");
 
 	int sum_ee_edge_weights = MathUtils::Sum(entity_net_.weights, entity_net_.num_edges);
@@ -193,9 +201,9 @@ void JointTrainer::TrainEntityNetThreaded(int vec_dim, int num_rounds, int num_t
 		threads[i].join();
 	printf("\n");
 
-	IOUtils::SaveVectors(ee_vecs0_, ee_vec_dim_, num_entities_, dst_input_vec_file_name);
+	IOUtils::SaveVectors(ee_vecs0_, entity_vec_dim_, num_entities_, dst_input_vec_file_name);
 	if (dst_output_vecs_file_name != 0)
-		IOUtils::SaveVectors(ee_vecs1_, ee_vec_dim_, num_entities_, dst_output_vecs_file_name);
+		IOUtils::SaveVectors(ee_vecs1_, entity_vec_dim_, num_entities_, dst_output_vecs_file_name);
 }
 
 void JointTrainer::TrainEntityNet(int seed, int num_training_rounds, int num_samples_per_round, 
@@ -206,7 +214,7 @@ void JointTrainer::TrainEntityNet(int seed, int num_training_rounds, int num_sam
 	
 	const float starting_alpha_ = 0.035f;
 
-	float *tmp_neu1e = new float[ee_vec_dim_];
+	float *tmp_neu1e = new float[entity_vec_dim_];
 	float alpha = starting_alpha_;  // TODO
 	for (int i = 0; i < num_training_rounds; ++i)
 	{
@@ -237,14 +245,14 @@ void JointTrainer::TrainEntityNet(int seed, int num_training_rounds, int num_sam
 void JointTrainer::TrainDocEntityNetThreaded(const char *entity_vec_file_name, int num_rounds,
 	int num_negative_samples, int num_threads, const char *dst_doc_vec_file_name)
 {
-	IOUtils::LoadVectors(entity_vec_file_name, num_entities_, ee_vec_dim_, ee_vecs0_);
+	IOUtils::LoadVectors(entity_vec_file_name, num_entities_, entity_vec_dim_, ee_vecs0_);
 	std::discrete_distribution<int> doc_entity_edge_sample_dist(entity_doc_net_.weights, 
 		entity_doc_net_.weights + entity_doc_net_.num_edges);
 
 	printf("initing model....\n");
-	ed_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, ee_vec_dim_);
+	doc_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, entity_vec_dim_);
 	ExpTable exp_table;
-	NegativeSamplingTrainer ns_trainer(&exp_table, ee_vec_dim_, num_entities_, num_negative_samples, &entity_sample_dist_);
+	NegativeSamplingTrainer ns_trainer(&exp_table, entity_vec_dim_, num_entities_, num_negative_samples, &entity_sample_dist_);
 	printf("inited.\n");
 
 	int sum_ed_edge_weights = MathUtils::Sum(entity_doc_net_.weights, entity_doc_net_.num_edges);
@@ -261,7 +269,7 @@ void JointTrainer::TrainDocEntityNetThreaded(const char *entity_vec_file_name, i
 		threads[i].join();
 	printf("\n");
 
-	IOUtils::SaveVectors(ed_vecs_, ee_vec_dim_, num_docs_, dst_doc_vec_file_name);
+	IOUtils::SaveVectors(doc_vecs_, entity_vec_dim_, num_docs_, dst_doc_vec_file_name);
 }
 
 void JointTrainer::TrainDocEntityNet(int seed, int num_rounds, int num_samples_per_round, std::discrete_distribution<int> &edge_sample_dist,
@@ -272,7 +280,7 @@ void JointTrainer::TrainDocEntityNet(int seed, int num_rounds, int num_samples_p
 
 	const float starting_alpha_ = 0.025f;
 
-	float *tmp_neu1e = new float[ee_vec_dim_];
+	float *tmp_neu1e = new float[entity_vec_dim_];
 	float alpha = starting_alpha_;  // TODO
 	for (int i = 0; i < num_rounds; ++i)
 	{
@@ -285,7 +293,7 @@ void JointTrainer::TrainDocEntityNet(int seed, int num_rounds, int num_samples_p
 		for (int j = 0; j < num_samples_per_round; ++j)
 		{
 			int edge_idx = edge_sample_dist(generator);
-			ns_trainer.TrainPrediction(ed_vecs_[entity_doc_net_.edges[edge_idx].va], entity_doc_net_.edges[edge_idx].vb, ee_vecs0_,
+			ns_trainer.TrainPrediction(doc_vecs_[entity_doc_net_.edges[edge_idx].va], entity_doc_net_.edges[edge_idx].vb, ee_vecs0_,
 				alpha, tmp_neu1e, generator, true, false);
 		}
 	}

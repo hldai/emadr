@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <ctime>
 #include <random>
 #include <array>
 #include <cassert>
@@ -84,23 +85,30 @@ void JointTraining()
 	const char *entity_net_file_name = "e:/dc/nyt/sentence_based_weighted_edge_list.txt";
 	const char *doc_entity_net_file_name = "e:/dc/nyt/doc_entities_lo_f2012.bin";
 	const char *doc_words_file_name = "e:/dc/nyt/line_docs/doc_word_indices_rm_ssw_lo_2012.bin";
-	const char *dst_doc_vec_file_name = "e:/dc/nyt/vecs/es_doc_vec_64_lo_f2012_joint.bin";
-	const int vec_dim = 64;
+	const char *dst_doc_vec_file_name = "e:/dc/nyt/vecs/es_doc_vec_64_lo_f2012_joint_128bin";
+	const int entity_vec_dim = 64;
+	const int word_vec_dim = 64;
+	const int doc_vec_dim = 128;
 	const int num_rounds = 5;
 	const int num_threads = 4;
 	const int num_negative_samples = 5;
 	JointTrainer jt(entity_net_file_name, doc_entity_net_file_name, doc_words_file_name);
-	jt.JointTrainingThreaded(vec_dim, num_rounds, num_threads, num_negative_samples,
-		dst_doc_vec_file_name);
+	jt.JointTrainingThreaded(entity_vec_dim, word_vec_dim, doc_vec_dim, num_rounds, num_threads, 
+		num_negative_samples, dst_doc_vec_file_name);
 }
 
 int main()
 {
+	time_t t = time(0);
+
 	//TrainEntityVectors();
 	//TrainEntitySetVectors();
 	//TrainEntitySetVectorsM();
 	//TrainParagraphVectors();
 	JointTraining();
+
+	int et = time(0) - t;
+	printf("%d s. %d m. %d h.\n", et, et / 60, et / 3600);
 
 	return 0;
 }
