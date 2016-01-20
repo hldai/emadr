@@ -15,11 +15,14 @@
 
 void TrainParagraphVectors()
 {
-	const char *doc_word_indices_file_name = "e:/dc/nyt/line_docs/doc_word_indices_rm_ssw_lo_2012.txt";
-	const char *dict_file_name = "e:/dc/nyt/doc_word_indices_dict.txt";
-	const char *dst_vec_file_name = "e:/dc/nyt/vecs/doc_vec_cpp_64.bin";
-	ParagraphVector pv(doc_word_indices_file_name, dict_file_name);
-	int vec_dim = 64;
+	const char *dw_net_file_name = "e:/dc/20ng_data/all_docs_dw_net.bin";
+
+	//const char *doc_word_indices_file_name = "e:/dc/20ng_data/doc_word_indices.txt";
+	//const char *dict_file_name = "e:/dc/20ng_data/doc_word_indices_dict.txt";
+
+	const char *dst_vec_file_name = "e:/dc/20ng_data/vecs/doc_vec_cpp_100.bin";
+	ParagraphVector pv(dw_net_file_name, 0.055f);
+	int vec_dim = 100;
 	int num_threads = 4;
 	pv.Train(vec_dim, num_threads, dst_vec_file_name);
 }
@@ -80,20 +83,52 @@ void TrainEntitySetVectorsM()
 	//trainer.TrainDocVectors(doc_entity_list_file_name, dst_entity_set_vec_file_name);
 }
 
-void JointTraining()
+void JointTrainingNYT()
 {
 	const char *entity_net_file_name = "e:/dc/nyt/sentence_based_weighted_edge_list.txt";
 	const char *doc_entity_net_file_name = "e:/dc/nyt/doc_entities_lo_f2012.bin";
 	const char *doc_words_file_name = "e:/dc/nyt/line_docs/doc_word_indices_rm_ssw_lo_2012.bin";
-	const char *dst_doc_vec_file_name = "e:/dc/nyt/vecs/es_doc_vec_64_lo_f2012_joint_128bin";
+	//const char *dst_doc_vec_file_name = "e:/dc/nyt/vecs/doc_vec_lo_f2012_joint_100.bin";
 	const int entity_vec_dim = 64;
 	const int word_vec_dim = 64;
 	const int doc_vec_dim = 128;
 	const int num_rounds = 5;
 	const int num_threads = 4;
 	const int num_negative_samples = 5;
+	char dst_doc_vec_file_name[256];
+	sprintf(dst_doc_vec_file_name, "e:/dc/nyt/vecs/doc_vec_lo_f2012_joint_%d.bin", doc_vec_dim);
 	JointTrainer jt(entity_net_file_name, doc_entity_net_file_name, doc_words_file_name);
 	jt.JointTrainingThreaded(entity_vec_dim, word_vec_dim, doc_vec_dim, num_rounds, num_threads, 
+		num_negative_samples, dst_doc_vec_file_name);
+}
+
+void JointTraining20NG()
+{
+	const char *entity_net_file_name = "e:/dc/20ng_data/weighted_entity_edge_list.txt";
+	const char *doc_entity_net_file_name = "e:/dc/20ng_data/doc_entities.bin";
+	const char *doc_words_file_name = "e:/dc/20ng_data/all_docs_dw_net.bin";
+
+	//const char *entity_net_file_name = "e:/dc/20ng_data/split/train_weighted_entity_edge_list.txt";
+	//const char *doc_entity_net_file_name = "e:/dc/20ng_data/split/train_doc_entities.bin";
+	//const char *doc_words_file_name = "e:/dc/20ng_data/split/train_docs_dw_net.bin";
+
+	//const char *entity_net_file_name = "e:/dc/20ng_data/split/train_weighted_entity_edge_list.txt";
+	//const char *doc_entity_net_file_name = "e:/dc/20ng_data/split/test_doc_entities.bin";
+	//const char *doc_words_file_name = "e:/dc/20ng_data/split/test_docs_dw_net.bin";
+
+	const int entity_vec_dim = 200;
+	const int word_vec_dim = 200;
+	const int doc_vec_dim = 400;
+	const int num_rounds = 4;
+	const int num_threads = 4;
+	const int num_negative_samples = 5;
+	char dst_doc_vec_file_name[256];
+	sprintf(dst_doc_vec_file_name, "e:/dc/20ng_data/vecs/all_doc_vec_joint_%d.bin", doc_vec_dim,
+		num_rounds, num_negative_samples);
+	//sprintf(dst_doc_vec_file_name, "e:/dc/20ng_data/vecs/train_doc_vec_joint_%d.bin", doc_vec_dim);
+	//sprintf(dst_doc_vec_file_name, "e:/dc/20ng_data/vecs/test_doc_vec_joint_%d.bin", doc_vec_dim);
+	JointTrainer jt(entity_net_file_name, doc_entity_net_file_name, doc_words_file_name);
+	jt.JointTrainingThreaded(entity_vec_dim, word_vec_dim, doc_vec_dim, num_rounds, num_threads,
 		num_negative_samples, dst_doc_vec_file_name);
 }
 
@@ -105,7 +140,8 @@ int main()
 	//TrainEntitySetVectors();
 	//TrainEntitySetVectorsM();
 	//TrainParagraphVectors();
-	JointTraining();
+	//JointTrainingNYT();
+	JointTraining20NG();
 
 	int et = time(0) - t;
 	printf("%d s. %d m. %d h.\n", et, et / 60, et / 3600);

@@ -71,6 +71,14 @@ void NegativeSamplingTrainer::TrainPrediction(float *vec0, int obj1, float **vec
 		}
 
 		float dot_product = MathUtils::DotProduct(vec0, vecs1[target], vec_dim_);
+		//if (isnan(dot_product))
+		//{
+		//	for (int i = 0; i < vec_dim_; ++i)
+		//		printf("%f ", vec0[i]);
+		//	printf("\n");
+		//	printf("NAN!\n");
+		//}
+		//printf("%f\n", dot_product);
 		float g = (label - exp_table_->getSigmaValue(dot_product)) * alpha;
 
 		for (int j = 0; j < vec_dim_; ++j)

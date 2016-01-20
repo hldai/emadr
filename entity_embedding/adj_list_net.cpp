@@ -30,6 +30,7 @@ void AdjListNet::LoadBinFile(const char *file_name)
 	for (int i = 0; i < num_vertices_left; ++i)
 	{
 		fread(&num_adj_vertices[i], 4, 1, fp);
+		//printf("%d\n", num_adj_vertices[i]);
 		adj_vertices[i] = new int[num_adj_vertices[i]];
 		weights[i] = new int[num_adj_vertices[i]];
 		fread(adj_vertices[i], 4, num_adj_vertices[i], fp);
@@ -66,8 +67,11 @@ int *AdjListNet::CountRightVertices()
 	int *cnts = new int[num_vertices_right];
 	std::fill(cnts, cnts + num_vertices_right, 0);
 	for (int i = 0; i < num_vertices_left; ++i)
+	{
+		//printf("%d %d\n", i, num_adj_vertices[i]);
 		for (int j = 0; j < num_adj_vertices[i]; ++j)
 			cnts[adj_vertices[i][j]] += weights[i][j];
+	}
 
 	return cnts;
 }

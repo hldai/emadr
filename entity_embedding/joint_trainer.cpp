@@ -40,6 +40,7 @@ JointTrainer::JointTrainer(const char *ee_net_file_name, const char *doc_entity_
 
 	AdjListNet doc_word_net;
 	doc_word_net.LoadBinFile(doc_words_file_name);
+	printf("%d\n", doc_word_net.num_adj_vertices[0]);
 	num_words_ = doc_word_net.num_vertices_right;
 	doc_word_net.ToEdgeNet(doc_word_net_);
 
@@ -92,11 +93,15 @@ void JointTrainer::JointTrainingThreaded(int entity_vec_dim, int word_vec_dim, i
 	int sum_dw_edge_weights = MathUtils::Sum(doc_word_net_.weights, doc_word_net_.num_edges);
 	int sum_weights = sum_ee_edge_weights + sum_de_edge_weights + sum_dw_edge_weights;
 	int num_samples_per_round = sum_weights;
+	//int num_samples_per_round = sum_dw_edge_weights;
 	//int num_samples_per_round = sum_ee_edge_weights + sum_de_edge_weights;
 
-	printf("net distribution: %f %f %f\n", (float)sum_ee_edge_weights / sum_weights,
-		(float)sum_de_edge_weights / sum_weights, (float)sum_dw_edge_weights / sum_weights);
-	std::discrete_distribution<int> net_sample_dist{ 0.157, 0.077, 0.766 };
+	float weight_portions[] = { (float)sum_ee_edge_weights / sum_weights,
+		(float)sum_de_edge_weights / sum_weights, (float)sum_dw_edge_weights / sum_weights };
+	printf("net distribution: %f %f %f\n", weight_portions[0], weight_portions[1], 
+		weight_portions[2]);
+	std::discrete_distribution<int> net_sample_dist(weight_portions, weight_portions + 3);
+	//std::discrete_distribution<int> net_sample_dist{ 0, 0, 1 };
 
 	int seeds[] = { 317, 7, 31, 297 };
 	std::thread *threads = new std::thread[num_threads];
@@ -125,7 +130,9 @@ void JointTrainer::JointTraining(int seed, int num_rounds, int num_samples_per_r
 	printf("seed %d samples_per_round %d. training...\n", seed, num_samples_per_round);
 	std::default_random_engine generator(seed);
 
-	const float starting_alpha_ = 0.025f;
+	const float starting_alpha_ = 0.05f;
+	const float min_alpha = starting_alpha_ * 0.005;
+	int total_num_samples = num_rounds * num_samples_per_round;
 
 	float *tmp_entity_neu1e = new float[entity_vec_dim_];
 	float *tmp_word_neu1e = new float[word_vec_dim_];
@@ -133,14 +140,18 @@ void JointTrainer::JointTraining(int seed, int num_rounds, int num_samples_per_r
 	float alpha = starting_alpha_;  // TODO
 	for (int i = 0; i < num_rounds; ++i)
 	{
-		printf("round %d\n", i);
-		alpha *= 0.96f;
-		if (alpha < starting_alpha_ * 0.01f)
-			alpha = starting_alpha_ * 0.01f;
+		printf("round %d, alpha %f\n", i, alpha);
+		//alpha *= 0.96f;
+		//if (alpha < starting_alpha_ * 0.1f)
+		//	alpha = starting_alpha_ * 0.1f;
 		//if (seed < 10)
 		//	printf("\r%d %f %d \n", i, alpha, num_samples_per_round);
 		for (int j = 0; j < num_samples_per_round; ++j)
 		{
+			int cur_num_samples = (i * num_samples_per_round) + j;
+			if (cur_num_samples % 10000 == 10000 - 1)
+				alpha = starting_alpha_ + (min_alpha - starting_alpha_) * cur_num_samples / total_num_samples;
+
 			int net_idx = net_sample_dist(generator);
 			if (net_idx == 0)
 			{
