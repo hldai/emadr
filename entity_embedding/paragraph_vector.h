@@ -15,13 +15,13 @@ class ParagraphVector
 		int vb;
 	};
 
-	static const int kNumNegSamples = 10;
-
 public:
-	ParagraphVector(const char *doc_word_indices_file_name, float starting_alpha = 0.02);
+	ParagraphVector(const char *doc_word_indices_file_name, float starting_alpha = 0.02,
+		int num_neg_samples=10);
 	~ParagraphVector();
 
-	void Train(int vec_dim, int num_threads, const char *dst_vec_file_name);
+	void Train(int vec_dim, int num_threads, const char *dst_vec_file_name, 
+		const char *dst_word_vecs_file_name);
 	void Train(int vec_dim, float **vecs0, float **vecs1, int num_samples,
 		int num_rounds, NegativeSamplingTrainer &ns_trainer, int random_seed);
 
@@ -38,7 +38,7 @@ private:
 	//int num_edges_ = 0;
 	//Edge *edges_ = 0;
 
-	int num_negative_samples_ = kNumNegSamples;
+	int num_negative_samples_;
 	float starting_alpha_;
 
 	std::discrete_distribution<int> word_sample_dist_;

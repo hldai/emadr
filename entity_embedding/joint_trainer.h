@@ -13,6 +13,14 @@ public:
 		const char *doc_words_file_name);
 	~JointTrainer();
 
+	void JointTrainingOMLThreaded(int vec_dim, int num_rounds, int num_threads, int num_negative_samples,
+		const char *dst_dedw_vec_file_name, const char *dst_mixed_vecs_file_name);
+	void JointTrainingOML(int seed, int num_rounds, int num_samples_per_round, std::discrete_distribution<int> &ee_edge_sample_dist,
+		std::discrete_distribution<int> &de_edge_sample_dist, std::discrete_distribution<int> &dw_edge_sample_dist, 
+		std::uniform_int_distribution<int> &dwe_sample_dist, std::discrete_distribution<int> &net_sample_dist, 
+		std::bernoulli_distribution &we_sample_dist, NegativeSamplingTrainer &entity_ns_trainer,
+		NegativeSamplingTrainer &word_ns_trainer, NegativeSamplingTrainer &doc_ns_trainer);
+
 	void JointTrainingThreaded(int entity_vec_dim, int word_vec_dim, int doc_vec_dim, int num_rounds, int num_threads, int num_negative_samples,
 		const char *dst_doc_vec_file_name);
 	void JointTraining(int seed, int num_rounds, int num_samples_per_round, std::discrete_distribution<int> &ee_edge_sample_dist,
@@ -32,7 +40,8 @@ public:
 		NegativeSamplingTrainer &ns_trainer);
 
 private:
-
+	void saveConcatnatedVectors(float **vecs0, float **vecs1, int num_vecs, int vec_dim,
+		const char *dst_file_name);
 	//void saveVectors(float **vecs, int vec_len, int num_vecs, const char *dst_file_name);
 
 private:
@@ -54,12 +63,17 @@ private:
 
 	float **doc_vecs_ = 0;
 
+	float **dw_vecs_ = 0;
+	float **de_vecs_ = 0;
+
 	float **word_vecs_ = 0;
 	std::discrete_distribution<int> word_sample_dist_;
 
 	int entity_vec_dim_ = 0;
 	int word_vec_dim_ = 0;
 	int doc_vec_dim_ = 0;
+
+	std::discrete_distribution<int> doc_sample_dist_;
 };
 
 #endif

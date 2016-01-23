@@ -27,6 +27,11 @@ JointTrainer::JointTrainer(const char *ee_net_file_name, const char *doc_entity_
 	doc_entity_net.ToEdgeNet(entity_doc_net_);
 	num_docs_ = doc_entity_net.num_vertices_left;
 
+	int *tmp_weights = new int[num_docs_];
+	std::fill(tmp_weights, tmp_weights + num_docs_, 1);
+	doc_sample_dist_ = std::discrete_distribution<int>(tmp_weights, tmp_weights + num_docs_);
+	delete[] tmp_weights;
+
 	assert(num_entities_ == 0 || doc_entity_net.num_vertices_right == num_entities_);
 
 	num_entities_ = doc_entity_net.num_vertices_right;
@@ -60,6 +65,156 @@ JointTrainer::~JointTrainer()
 
 	if (doc_vecs_ != 0)
 		MemUtils::Release(doc_vecs_, num_docs_);
+	if (word_vecs_ != 0)
+		MemUtils::Release(word_vecs_, num_words_);
+}
+
+void JointTrainer::JointTrainingOMLThreaded(int vec_dim, int num_rounds, int num_threads, int num_negative_samples, 
+	const char *dst_dedw_vec_file_name, const char *dst_mixed_vecs_file_name)
+{
+	doc_vec_dim_ = entity_vec_dim_ = word_vec_dim_ = vec_dim;
+
+	std::discrete_distribution<int> ee_edge_sample_dist(entity_net_.weights,
+		entity_net_.weights + entity_net_.num_edges);
+	std::discrete_distribution<int> de_edge_sample_dist(entity_doc_net_.weights,
+		entity_doc_net_.weights + entity_doc_net_.num_edges);
+	std::discrete_distribution<int> dw_edge_sample_dist(doc_word_net_.weights,
+		doc_word_net_.weights + doc_word_net_.num_edges);
+	std::uniform_int_distribution<int> dwe_sample_dist(0, num_docs_ - 1);
+	std::bernoulli_distribution we_sample_dist(0.7);
+
+	printf("initing model....\n");
+	word_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_words_, doc_vec_dim_);
+	dw_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, doc_vec_dim_);
+
+	ee_vecs0_ = NegativeSamplingTrainer::GetInitedVecs0(num_entities_, doc_vec_dim_);
+	ee_vecs1_ = NegativeSamplingTrainer::GetInitedVecs1(num_entities_, doc_vec_dim_);
+	de_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, doc_vec_dim_);
+
+	doc_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, doc_vec_dim_);
+
+	ExpTable exp_table;
+	NegativeSamplingTrainer entity_ns_trainer(&exp_table, doc_vec_dim_, num_entities_,
+		num_negative_samples, &entity_sample_dist_);
+	NegativeSamplingTrainer word_ns_trainer(&exp_table, doc_vec_dim_, num_words_,
+		num_negative_samples, &word_sample_dist_);
+	// for both dw and de
+	NegativeSamplingTrainer doc_ns_trainer(&exp_table, doc_vec_dim_, num_docs_,
+		num_negative_samples, &doc_sample_dist_);
+	printf("inited.\n");
+
+	int sum_ee_edge_weights = MathUtils::Sum(entity_net_.weights, entity_net_.num_edges);
+	int sum_de_edge_weights = MathUtils::Sum(entity_doc_net_.weights, entity_doc_net_.num_edges);
+	int sum_dw_edge_weights = MathUtils::Sum(doc_word_net_.weights, doc_word_net_.num_edges);
+	int sum_dew_edge_weights = 2 * num_docs_;
+	sum_dew_edge_weights = 0;
+	int sum_weights = sum_ee_edge_weights + sum_de_edge_weights + sum_dw_edge_weights + sum_dew_edge_weights;
+	int num_samples_per_round = sum_weights;
+	//int num_samples_per_round = sum_dw_edge_weights;
+	//int num_samples_per_round = sum_ee_edge_weights + sum_de_edge_weights;
+
+	float weight_portions[] = { (float)sum_ee_edge_weights / sum_weights,
+		(float)sum_de_edge_weights / sum_weights, (float)sum_dw_edge_weights / sum_weights, 
+		(float)sum_dew_edge_weights / sum_weights };
+	printf("net distribution: %f %f %f %f\n", weight_portions[0], weight_portions[1],
+		weight_portions[2], weight_portions[3]);
+	std::discrete_distribution<int> net_sample_dist(weight_portions, weight_portions + 4);
+	//std::discrete_distribution<int> net_sample_dist{ 0, 0, 1 };
+
+	int seeds[] = { 317, 7, 31, 297 };
+	std::thread *threads = new std::thread[num_threads];
+	for (int i = 0; i < num_threads; ++i)
+	{
+		int cur_seed = seeds[i];
+		threads[i] = std::thread([&, cur_seed, num_rounds, num_samples_per_round]
+		{
+			JointTrainingOML(cur_seed, num_rounds, num_samples_per_round, ee_edge_sample_dist,
+				de_edge_sample_dist, dw_edge_sample_dist, dwe_sample_dist, net_sample_dist, 
+				we_sample_dist, entity_ns_trainer, word_ns_trainer, doc_ns_trainer);
+		});
+	}
+	for (int i = 0; i < num_threads; ++i)
+		threads[i].join();
+	printf("\n");
+
+	saveConcatnatedVectors(de_vecs_, dw_vecs_, num_docs_, doc_vec_dim_, dst_dedw_vec_file_name);
+	IOUtils::SaveVectors(doc_vecs_, doc_vec_dim_, num_docs_, dst_mixed_vecs_file_name);
+}
+
+void JointTrainer::JointTrainingOML(int seed, int num_rounds, int num_samples_per_round, 
+	std::discrete_distribution<int>& ee_edge_sample_dist, std::discrete_distribution<int>& de_edge_sample_dist, 
+	std::discrete_distribution<int>& dw_edge_sample_dist, std::uniform_int_distribution<int> &dwe_sample_dist, 
+	std::discrete_distribution<int>& net_sample_dist, std::bernoulli_distribution &we_sample_dist, 
+	NegativeSamplingTrainer &entity_ns_trainer, NegativeSamplingTrainer &word_ns_trainer,
+	NegativeSamplingTrainer &doc_ns_trainer)
+{
+	printf("seed %d samples_per_round %d. training...\n", seed, num_samples_per_round);
+	std::default_random_engine generator(seed);
+
+	const float starting_alpha_ = 0.07f;
+	const float min_alpha = starting_alpha_ * 0.001;
+	int total_num_samples = num_rounds * num_samples_per_round;
+
+	float *tmp_neu1e = new float[doc_vec_dim_];
+
+	float alpha = starting_alpha_;  // TODO
+	for (int i = 0; i < num_rounds; ++i)
+	{
+		printf("round %d, alpha %f\n", i, alpha);
+		//alpha *= 0.96f;
+		//if (alpha < starting_alpha_ * 0.1f)
+		//	alpha = starting_alpha_ * 0.1f;
+		//if (seed < 10)
+		//	printf("\r%d %f %d \n", i, alpha, num_samples_per_round);
+		for (int j = 0; j < num_samples_per_round; ++j)
+		{
+			int cur_num_samples = (i * num_samples_per_round) + j;
+			if (cur_num_samples % 10000 == 10000 - 1)
+				alpha = starting_alpha_ + (min_alpha - starting_alpha_) * cur_num_samples / total_num_samples;
+
+			int net_idx = net_sample_dist(generator);
+			if (net_idx == 0)
+			{
+				int edge_idx = ee_edge_sample_dist(generator);
+				Edge &edge = entity_net_.edges[edge_idx];
+				entity_ns_trainer.TrainPrediction(ee_vecs0_[edge.va], edge.vb, ee_vecs1_,
+					alpha, tmp_neu1e, generator);
+				entity_ns_trainer.TrainPrediction(ee_vecs0_[edge.vb], edge.va, ee_vecs1_,
+					alpha, tmp_neu1e, generator);
+			}
+			else if (net_idx == 1)
+			{
+				int edge_idx = de_edge_sample_dist(generator);
+				Edge &edge = entity_doc_net_.edges[edge_idx];
+				entity_ns_trainer.TrainPrediction(de_vecs_[edge.va], edge.vb, ee_vecs0_,
+					alpha, tmp_neu1e, generator);
+			}
+			else if (net_idx == 2)
+			{
+				int edge_idx = dw_edge_sample_dist(generator);
+				Edge &edge = doc_word_net_.edges[edge_idx];
+				word_ns_trainer.TrainPrediction(dw_vecs_[edge.va], edge.vb, word_vecs_,
+					alpha, tmp_neu1e, generator);
+			}
+			else
+			{
+				int doc_idx = dwe_sample_dist(generator);
+				bool is_dw = we_sample_dist(generator);
+				if (is_dw)
+				{
+					doc_ns_trainer.TrainPrediction(doc_vecs_[doc_idx], doc_idx, dw_vecs_,
+						alpha, tmp_neu1e, generator);
+				}
+				else
+				{
+					doc_ns_trainer.TrainPrediction(doc_vecs_[doc_idx], doc_idx, de_vecs_,
+						alpha, tmp_neu1e, generator);
+				}
+			}
+		}
+	}
+
+	delete[] tmp_neu1e;
 }
 
 void JointTrainer::JointTrainingThreaded(int entity_vec_dim, int word_vec_dim, int doc_vec_dim, 
@@ -131,7 +286,7 @@ void JointTrainer::JointTraining(int seed, int num_rounds, int num_samples_per_r
 	std::default_random_engine generator(seed);
 
 	const float starting_alpha_ = 0.05f;
-	const float min_alpha = starting_alpha_ * 0.005;
+	const float min_alpha = starting_alpha_ * 0.001;
 	int total_num_samples = num_rounds * num_samples_per_round;
 
 	float *tmp_entity_neu1e = new float[entity_vec_dim_];
@@ -310,4 +465,23 @@ void JointTrainer::TrainDocEntityNet(int seed, int num_rounds, int num_samples_p
 	}
 
 	delete[] tmp_neu1e;
+}
+
+void JointTrainer::saveConcatnatedVectors(float **vecs0, float **vecs1, int num_vecs, int vec_dim, 
+	const char *dst_file_name)
+{
+	FILE *fp = fopen(dst_file_name, "wb");
+	assert(fp != 0);
+
+	fwrite(&num_vecs, 4, 1, fp);
+	int full_vec_dim = vec_dim << 1;
+	fwrite(&full_vec_dim, 4, 1, fp);
+
+	for (int i = 0; i < num_vecs; ++i)
+	{
+		fwrite(vecs0[i], 4, vec_dim, fp);
+		fwrite(vecs1[i], 4, vec_dim, fp);
+	}
+
+	fclose(fp);
 }

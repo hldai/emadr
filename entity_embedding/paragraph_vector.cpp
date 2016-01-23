@@ -9,7 +9,8 @@
 #include "adj_list_net.h"
 #include "math_utils.h"
 
-ParagraphVector::ParagraphVector(const char *doc_word_net_file_name, float starting_alpha) : starting_alpha_(starting_alpha)
+ParagraphVector::ParagraphVector(const char *doc_word_net_file_name, float starting_alpha,
+	int num_neg_samples) : starting_alpha_(starting_alpha), num_negative_samples_(num_neg_samples)
 {
 	AdjListNet doc_word_net;
 	doc_word_net.LoadBinFile(doc_word_net_file_name);
@@ -37,7 +38,7 @@ ParagraphVector::~ParagraphVector()
 }
 
 void ParagraphVector::Train(int vec_dim, int num_threads,
-	const char *dst_vec_file_name)
+	const char *dst_vec_file_name, const char *dst_word_vecs_file_name)
 {
 	float **vecs0 = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, vec_dim);
 	float **vecs1 = NegativeSamplingTrainer::GetInitedVecs1(num_words_, vec_dim);
@@ -46,7 +47,7 @@ void ParagraphVector::Train(int vec_dim, int num_threads,
 	int sum_dw_edge_weights = MathUtils::Sum(doc_word_net_.weights, doc_word_net_.num_edges);
 	const int num_samples = sum_dw_edge_weights;
 	printf("%d samples per round\n", num_samples);
-	const int num_rounds = 3;
+	const int num_rounds = 5;
 	ExpTable exp_table;
 	NegativeSamplingTrainer ns_trainer(&exp_table, vec_dim, num_words_,
 		num_negative_samples_, &word_sample_dist_);
@@ -67,6 +68,7 @@ void ParagraphVector::Train(int vec_dim, int num_threads,
 	NegativeSamplingTrainer::CloseVectors(vecs0, num_docs_, vec_dim, 2);
 
 	IOUtils::SaveVectors(vecs0, vec_dim, num_docs_, dst_vec_file_name);
+	IOUtils::SaveVectors(vecs1, vec_dim, num_words_, dst_word_vecs_file_name);
 
 	MemUtils::Release(vecs0, num_docs_);
 	MemUtils::Release(vecs1, num_words_);
@@ -80,7 +82,7 @@ void ParagraphVector::Train(int vec_dim, float **vecs0, float **vecs1,
 	std::default_random_engine generator(random_seed);
 
 	float alpha = starting_alpha_;
-	float min_alpha = starting_alpha_ * 0.005;
+	float min_alpha = starting_alpha_ * 0.001;
 	int total_num_samples = num_rounds * num_samples;
 	//int total_num_samples = num_samples;
 
@@ -93,7 +95,7 @@ void ParagraphVector::Train(int vec_dim, float **vecs0, float **vecs1,
 		{
 			int cur_num_samples = (i * num_samples) + j;
 			//int cur_num_samples = j;
-			if (cur_num_samples % 10000 == 10000 - 1)
+			if (cur_num_samples % 1000 == 1000 - 1)
 			{
 				alpha = starting_alpha_ + (min_alpha - starting_alpha_) * cur_num_samples / total_num_samples;
 				//printf("alpha: %f\n", alpha);
