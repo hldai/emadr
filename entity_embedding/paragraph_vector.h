@@ -20,7 +20,7 @@ public:
 		int num_neg_samples=10);
 	~ParagraphVector();
 
-	void Train(int vec_dim, int num_threads, const char *dst_vec_file_name, 
+	void Train(int vec_dim, int num_threads, int num_rounds, const char *dst_vec_file_name,
 		const char *dst_word_vecs_file_name);
 	void Train(int vec_dim, float **vecs0, float **vecs1, int num_samples,
 		int num_rounds, NegativeSamplingTrainer &ns_trainer, int random_seed);

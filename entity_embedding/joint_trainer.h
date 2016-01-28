@@ -13,8 +13,9 @@ public:
 		const char *doc_words_file_name);
 	~JointTrainer();
 
-	void JointTrainingOMLThreaded(int vec_dim, int num_rounds, int num_threads, int num_negative_samples,
-		const char *dst_dedw_vec_file_name, const char *dst_mixed_vecs_file_name);
+	void JointTrainingOMLThreaded(int vec_dim, int num_rounds, int num_threads, int num_negative_samples, float starting_alpha, 
+		float ws_rate, float min_alpha, const char *dst_dedw_vec_file_name, const char *dst_mixed_vecs_file_name = 0, 
+		const char *dst_word_vecs_file_name = 0, const char *dst_entity_vecs_file_name = 0);
 	void JointTrainingOML(int seed, int num_rounds, int num_samples_per_round, std::discrete_distribution<int> &ee_edge_sample_dist,
 		std::discrete_distribution<int> &de_edge_sample_dist, std::discrete_distribution<int> &dw_edge_sample_dist, 
 		std::uniform_int_distribution<int> &dwe_sample_dist, std::discrete_distribution<int> &net_sample_dist, 
@@ -45,6 +46,9 @@ private:
 	//void saveVectors(float **vecs, int vec_len, int num_vecs, const char *dst_file_name);
 
 private:
+	float starting_alpha_;
+	float min_alpha_;
+
 	// Entity net
 	EdgeNet entity_net_;
 	int num_entities_ = 0;

@@ -37,7 +37,7 @@ ParagraphVector::~ParagraphVector()
 	//delete[] edges_;
 }
 
-void ParagraphVector::Train(int vec_dim, int num_threads,
+void ParagraphVector::Train(int vec_dim, int num_threads, int num_rounds,
 	const char *dst_vec_file_name, const char *dst_word_vecs_file_name)
 {
 	float **vecs0 = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, vec_dim);
@@ -47,7 +47,6 @@ void ParagraphVector::Train(int vec_dim, int num_threads,
 	int sum_dw_edge_weights = MathUtils::Sum(doc_word_net_.weights, doc_word_net_.num_edges);
 	const int num_samples = sum_dw_edge_weights;
 	printf("%d samples per round\n", num_samples);
-	const int num_rounds = 5;
 	ExpTable exp_table;
 	NegativeSamplingTrainer ns_trainer(&exp_table, vec_dim, num_words_,
 		num_negative_samples_, &word_sample_dist_);

@@ -58,6 +58,7 @@ void NegativeSamplingTrainer::TrainPrediction(float *vec0, int obj1, float **vec
 	for (int i = 0; i < vec_dim_; ++i)
 		tmp_neu1e[i] = 0.0f;
 
+	const float lambda = alpha * 0.01;
 	int target = obj1;
 	int label = 1;
 	for (int i = 0; i < num_negative_samples_ + 1; ++i)
@@ -86,14 +87,14 @@ void NegativeSamplingTrainer::TrainPrediction(float *vec0, int obj1, float **vec
 		if (update1)
 		{
 			for (int j = 0; j < vec_dim_; ++j)
-				vecs1[target][j] += g * vec0[j];
+				vecs1[target][j] += g * vec0[j] - lambda * vecs1[target][j];
 		}
 	}
 
 	if (update0)
 	{
 		for (int j = 0; j < vec_dim_; ++j)
-			vec0[j] += tmp_neu1e[j];
+			vec0[j] += tmp_neu1e[j] - lambda * vec0[j];
 	}
 }
 

@@ -22,10 +22,11 @@ void TrainParagraphVectors()
 
 	const char *dst_vec_file_name = "e:/dc/20ng_bydate/vecs/doc_vec_cpp_100.bin";
 	const char *dst_word_vec_file_name = "e:/dc/20ng_bydate/vecs/word_vecs_cpp_100.bin";
-	ParagraphVector pv(dw_net_file_name, 0.045f, 5);
-	int vec_dim = 100;
+	ParagraphVector pv(dw_net_file_name, 0.02f, 5);
+	int vec_dim = 200;
 	int num_threads = 4;
-	pv.Train(vec_dim, num_threads, dst_vec_file_name, dst_word_vec_file_name);
+	int num_rounds = 15;
+	pv.Train(vec_dim, num_threads, num_rounds, dst_vec_file_name, dst_word_vec_file_name);
 }
 
 void TrainEntityVectors()
@@ -133,37 +134,69 @@ void JointTraining20NG()
 		num_negative_samples, dst_doc_vec_file_name);
 }
 
-void JointTrainingOML20NG()
+void JointTrainingOML20NG(int argc, char **argv)
 {
 	const char *entity_net_file_name = "e:/dc/20ng_bydate/weighted_entity_edge_list.txt";
 	const char *doc_entity_net_file_name = "e:/dc/20ng_bydate/doc_entities.bin";
 	const char *doc_words_file_name = "e:/dc/20ng_bydate/all_docs_dw_net.bin";
+	const char *dst_dedw_vecs_file_name = "e:/dc/20ng_bydate/vecs/dedw_vecs.bin";
 
-	//const char *entity_net_file_name = "e:/dc/20ng_data/split/train_weighted_entity_edge_list.txt";
-	//const char *doc_entity_net_file_name = "e:/dc/20ng_data/split/train_doc_entities.bin";
-	//const char *doc_words_file_name = "e:/dc/20ng_data/split/train_docs_dw_net.bin";
+	//const char *entity_net_file_name = "/home/dhl/data/dc/20ng_bydate/weighted_entity_edge_list.txt";
+	//const char *doc_entity_net_file_name = "/home/dhl/data/dc/20ng_bydate/doc_entities.bin";
+	//const char *doc_words_file_name = "/home/dhl/data/dc/20ng_bydate/all_docs_dw_net.bin";
+	//const char *dst_dedw_vecs_file_name = "/home/dhl/data/dc/20ng_bydate/dedw_vecs.bin";
 
-	//const char *entity_net_file_name = "e:/dc/20ng_data/split/train_weighted_entity_edge_list.txt";
-	//const char *doc_entity_net_file_name = "e:/dc/20ng_data/split/test_doc_entities.bin";
-	//const char *doc_words_file_name = "e:/dc/20ng_data/split/test_docs_dw_net.bin";
+	int doc_vec_dim = 50;
+	int num_rounds = 10;
+	int num_threads = 4;
+	int num_negative_samples = 10;
+	float starting_alpha = 0.06f;
+	float ws_rate = 0.7;
+	float min_alpha = 0.0001;
 
-	const int doc_vec_dim = 100;
-	const int num_rounds = 20;
-	const int num_threads = 4;
-	const int num_negative_samples = 5;
-	char dst_dedw_vecs_file_name[256];
-	char dst_mixed_vecs_file_name[256];
-	//sprintf(dst_dedw_vecs_file_name, "e:/dc/20ng_bydate/vecs/all_doc_vec_joint_oml_%d.bin", doc_vec_dim,
-	//	num_rounds, num_negative_samples);
+	if (argc >= 8)
+	{
+		doc_vec_dim = atoi(argv[1]);
+		num_rounds = atoi(argv[2]);
+		num_threads = atoi(argv[3]);
+		num_negative_samples = atoi(argv[4]);
+		starting_alpha = atof(argv[5]);
+		ws_rate = atof(argv[6]);
+		min_alpha = atof(argv[7]);
+		if (argc == 9)
+			dst_dedw_vecs_file_name = argv[8];
+	}
+
+	printf("vec_dim: %d\nnum_rounds: %d\nnum_threads: %d\nnum_neg_samples: %d\nstarting_alpha: %f\nws_rate: %f\nmin_alpha: %f\n",
+		doc_vec_dim, num_rounds, num_threads, num_negative_samples, starting_alpha, ws_rate, min_alpha);
+
+	//const int max_path = 256;
+	//char dst_mixed_vecs_file_name[max_path];
+	//char dst_word_vecs_file_name[max_path];
+	//char dst_entity_vecs_file_name[max_path];
+
 	//sprintf(dst_mixed_vecs_file_name, "e:/dc/20ng_bydate/vecs/all_doc_vec_joint_oml_mixed_%d.bin", doc_vec_dim,
 	//	num_rounds, num_negative_samples);
-	sprintf(dst_dedw_vecs_file_name, "e:/dc/20ng_bydate/vecs/all_doc_vec_joint_oml_%d_test.bin", doc_vec_dim,
-		num_rounds, num_negative_samples);
-	sprintf(dst_mixed_vecs_file_name, "e:/dc/20ng_bydate/vecs/all_doc_vec_joint_oml_mixed_%d_test.bin", doc_vec_dim,
-		num_rounds, num_negative_samples);
+	//sprintf(dst_dedw_vecs_file_name, "/home/dhl/data/dc/20ng_bydate/vecs/all_doc_vec_joint_oml_%d.bin",
+	//	doc_vec_dim, num_rounds, num_negative_samples);
+	//sprintf(dst_mixed_vecs_file_name, "/home/dhl/data/dc/20ng_bydate/vecs/all_doc_vec_joint_oml_mixed_%d.bin",
+	//	doc_vec_dim, num_rounds, num_negative_samples);
+
+	//sprintf(dst_word_vecs_file_name, "e:/dc/20ng_bydate/vecs/word_vecs_joint_oml_%d.bin", doc_vec_dim,
+	//	num_rounds, num_negative_samples);
+	//sprintf(dst_entity_vecs_file_name, "e:/dc/20ng_bydate/vecs/entity_vecs_joint_oml_%d.bin", doc_vec_dim,
+	//	num_rounds, num_negative_samples);
+
+	//sprintf(dst_dedw_vecs_file_name, "e:/dc/20ng_bydate/vecs/all_doc_vec_joint_oml_%d_test.bin", doc_vec_dim,
+	//	num_rounds, num_negative_samples);
+	//sprintf(dst_mixed_vecs_file_name, "e:/dc/20ng_bydate/vecs/all_doc_vec_joint_oml_mixed_%d_test.bin", doc_vec_dim,
+	//	num_rounds, num_negative_samples);
 	JointTrainer jt(entity_net_file_name, doc_entity_net_file_name, doc_words_file_name);
-	jt.JointTrainingOMLThreaded(doc_vec_dim, num_rounds, num_threads,
-		num_negative_samples, dst_dedw_vecs_file_name, dst_mixed_vecs_file_name);
+	//jt.JointTrainingOMLThreaded(doc_vec_dim, num_rounds, num_threads, num_negative_samples, 
+	//	starting_alpha, ws_rate, min_alpha, dst_dedw_vecs_file_name, dst_mixed_vecs_file_name, dst_word_vecs_file_name,
+	//	dst_entity_vecs_file_name);
+	jt.JointTrainingOMLThreaded(doc_vec_dim, num_rounds, num_threads, num_negative_samples,
+		starting_alpha, ws_rate, min_alpha, dst_dedw_vecs_file_name);
 }
 
 void Test()
@@ -176,7 +209,7 @@ void Test()
 	}
 }
 
-int main()
+int main(int argc, char **argv)
 {
 	time_t t = time(0);
 
@@ -186,7 +219,7 @@ int main()
 	//TrainParagraphVectors();
 	//JointTrainingNYT();
 	//JointTraining20NG();
-	JointTrainingOML20NG();
+	JointTrainingOML20NG(argc, argv);
 	//Test();
 
 	int et = time(0) - t;
