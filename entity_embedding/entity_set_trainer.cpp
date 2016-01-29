@@ -55,10 +55,10 @@ void EntitySetTrainer::TrainM(const char *doc_entity_list_file_name, int dst_dim
 	readDocEntities(doc_entity_list_file_name);
 
 	dst_dim_ = dst_dim;
-	int vec1_dim = vec_dict_.vec_len();
+	int dim1_ = vec_dict_.vec_len();
 	int num_entity_vecs = vec_dict_.num_vectors();
 
-	printf("dim0: %d dim1: %d num_vectors: %d num_negative_samples: %d\n", dst_dim, vec1_dim,
+	printf("dim0: %d dim1: %d num_vectors: %d num_negative_samples: %d\n", dst_dim, dim1_,
 		num_entity_vecs, kNumNegSamples);
 
 	ExpTable exp_table;
@@ -68,9 +68,7 @@ void EntitySetTrainer::TrainM(const char *doc_entity_list_file_name, int dst_dim
 
 	std::default_random_engine generator(13787);
 
-	MatrixTrainer matrix_trainer(&exp_table, dst_dim, vec1_dim, num_entity_vecs, kNumNegSamples,
-		&entity_sample_dist_);
-	NegativeSamplingTrainer ns_trainer(&exp_table, dst_dim, num_entity_vecs, kNumNegSamples,
+	NegativeSamplingTrainer ns_trainer(&exp_table, num_entity_vecs, kNumNegSamples,
 		&entity_sample_dist_);
 
 	float **doc_vecs = new float*[num_docs_], **prec_vecs1 = new float*[num_entity_vecs];
@@ -86,14 +84,14 @@ void EntitySetTrainer::TrainM(const char *doc_entity_list_file_name, int dst_dim
 	int *doc_samples = new int[num_pre_iter_samples];
 
 	const int num_iter = 5;
-	float *matrix = new float[dst_dim * vec1_dim];
-	MatrixTrainer::InitMatrix(matrix, dst_dim, vec1_dim);
+	float *matrix = new float[dst_dim * dim1_];
+	MatrixTrainer::InitMatrix(matrix, dst_dim, dim1_);
 	for (int i = 0; i < num_iter; ++i)
 	{
-		printf("matrix norm: %f\n", MathUtils::NormSqr(matrix, dst_dim * vec1_dim));
+		printf("matrix norm: %f\n", MathUtils::NormSqr(matrix, dst_dim * dim1_));
 
 		printf("pre calc vectors1 ...\n");
-		MatrixTrainer::PreCalcVecs1(matrix, dst_dim, vec1_dim, vec_dict_.vecs(), 
+		MatrixTrainer::PreCalcVecs1(matrix, dst_dim, dim1_, vec_dict_.vecs(),
 			num_entity_vecs, prec_vecs1);
 
 		sampleDocs(num_pre_iter_samples, doc_samples, generator);
@@ -106,12 +104,12 @@ void EntitySetTrainer::TrainM(const char *doc_entity_list_file_name, int dst_dim
 		//trainDocVectorsThreaded(0, num_docs_, vec_dict_.vecs(), ns_trainer, doc_vecs, 4);
 
 		printf("training matrix ...\n");
-		trainMatrix(doc_samples, num_pre_iter_samples, matrix, matrix_trainer, doc_vecs,
+		trainMatrix(doc_samples, num_pre_iter_samples, matrix, ns_trainer, doc_vecs,
 			vec_dict_.vecs(), generator);
 	}
 
 	printf("pre calc vectors1 ...\n");
-	MatrixTrainer::PreCalcVecs1(matrix, dst_dim, vec1_dim, vec_dict_.vecs(),
+	MatrixTrainer::PreCalcVecs1(matrix, dst_dim, dim1_, vec_dict_.vecs(),
 		num_entity_vecs, prec_vecs1);
 	printf("training vectors ...\n");
 	trainDocVectorsThreaded(0, num_docs_, prec_vecs1, ns_trainer, doc_vecs, 4);
@@ -140,7 +138,7 @@ void EntitySetTrainer::trainDocVectorsWithNegativeSampling(const char *dst_file_
 	double *entity_sample_weights = getEntitySampleWeights();
 	entity_sample_dist_ = std::discrete_distribution<int>(entity_sample_weights,
 		entity_sample_weights + vec_dict_.num_vectors());
-	NegativeSamplingTrainer ns_trainer(&exp_table, vec_len, vec_dict_.num_vectors(), kNumNegSamples,
+	NegativeSamplingTrainer ns_trainer(&exp_table, vec_dict_.num_vectors(), kNumNegSamples,
 		&entity_sample_dist_);
 
 	std::default_random_engine generator;
@@ -269,7 +267,7 @@ void EntitySetTrainer::trainDocVectorWithFixedEntityVecs(int num_entities, int *
 		for (int j = 0; j < num_entities; ++j)
 		{
 			for (int k = 0; k < entity_cnts[j]; ++k)
-				ns_trainer.TrainPrediction(dst_vec, entities[j], entity_vecs,
+				ns_trainer.TrainEdge(vec_len, dst_vec, entities[j], entity_vecs,
 					alpha, tmp_neu1e, generator, true, false);
 		}
 		alpha *= 0.97f;
@@ -279,7 +277,8 @@ void EntitySetTrainer::trainDocVectorWithFixedEntityVecs(int num_entities, int *
 }
 
 void EntitySetTrainer::trainMatrix(int *doc_indices, int num_docs, float *matrix, 
-	MatrixTrainer &matrix_trainer, float **doc_vecs, float **vecs1, std::default_random_engine &generator)
+	NegativeSamplingTrainer &ns_trainer, float **doc_vecs, float **vecs1, 
+	std::default_random_engine &generator)
 {
 	float alpha = 0.01f;
 
@@ -294,8 +293,8 @@ void EntitySetTrainer::trainMatrix(int *doc_indices, int num_docs, float *matrix
 		for (int j = 0; j < nums_doc_entities_[doc_idx]; ++j)
 		{
 			for (int k = 0; k < doc_entity_cnts_[doc_idx][j]; ++k)
-				matrix_trainer.TrainMatrix(doc_vecs[doc_idx], doc_entities_[doc_idx][j], vecs1,
-					matrix, alpha, generator);
+				ns_trainer.TrainEdgeMatrix(dst_dim_, dim1_, doc_vecs[doc_idx], doc_entities_[doc_idx][j], vecs1,
+					matrix, alpha, 0, generator, false, false, true);
 		}
 	}
 }

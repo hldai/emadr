@@ -125,8 +125,7 @@ void JointTraining20NG()
 	const int num_threads = 4;
 	const int num_negative_samples = 5;
 	char dst_doc_vec_file_name[256];
-	sprintf(dst_doc_vec_file_name, "e:/dc/20ng_bydate/vecs/all_doc_vec_joint_%d.bin", doc_vec_dim,
-		num_rounds, num_negative_samples);
+	sprintf(dst_doc_vec_file_name, "e:/dc/20ng_bydate/vecs/all_doc_vec_joint_%d.bin", doc_vec_dim);
 	//sprintf(dst_doc_vec_file_name, "e:/dc/20ng_data/vecs/train_doc_vec_joint_%d.bin", doc_vec_dim);
 	//sprintf(dst_doc_vec_file_name, "e:/dc/20ng_data/vecs/test_doc_vec_joint_%d.bin", doc_vec_dim);
 	JointTrainer jt(entity_net_file_name, doc_entity_net_file_name, doc_words_file_name);
@@ -146,13 +145,13 @@ void JointTrainingOML20NG(int argc, char **argv)
 	//const char *doc_words_file_name = "/home/dhl/data/dc/20ng_bydate/all_docs_dw_net.bin";
 	//const char *dst_dedw_vecs_file_name = "/home/dhl/data/dc/20ng_bydate/dedw_vecs.bin";
 
-	int doc_vec_dim = 50;
+	int doc_vec_dim = 100;
 	int num_rounds = 10;
 	int num_threads = 4;
 	int num_negative_samples = 10;
 	float starting_alpha = 0.06f;
-	float ws_rate = 0.7;
-	float min_alpha = 0.0001;
+	float ws_rate = 0.7f;
+	float min_alpha = 0.0001f;
 
 	if (argc >= 8)
 	{
@@ -160,9 +159,9 @@ void JointTrainingOML20NG(int argc, char **argv)
 		num_rounds = atoi(argv[2]);
 		num_threads = atoi(argv[3]);
 		num_negative_samples = atoi(argv[4]);
-		starting_alpha = atof(argv[5]);
-		ws_rate = atof(argv[6]);
-		min_alpha = atof(argv[7]);
+		starting_alpha = (float)atof(argv[5]);
+		ws_rate = (float)atof(argv[6]);
+		min_alpha = (float)atof(argv[7]);
 		if (argc == 9)
 			dst_dedw_vecs_file_name = argv[8];
 	}
@@ -222,8 +221,8 @@ int main(int argc, char **argv)
 	JointTrainingOML20NG(argc, argv);
 	//Test();
 
-	int et = time(0) - t;
-	printf("\n%d s. %d m. %d h.\n", et, et / 60, et / 3600);
+	time_t et = time(0) - t;
+	printf("\n%lld s. %lld m. %lld h.\n", et, et / 60, et / 3600);
 
 	return 0;
 }

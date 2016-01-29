@@ -48,7 +48,7 @@ void ParagraphVector::Train(int vec_dim, int num_threads, int num_rounds,
 	const int num_samples = sum_dw_edge_weights;
 	printf("%d samples per round\n", num_samples);
 	ExpTable exp_table;
-	NegativeSamplingTrainer ns_trainer(&exp_table, vec_dim, num_words_,
+	NegativeSamplingTrainer ns_trainer(&exp_table, num_words_,
 		num_negative_samples_, &word_sample_dist_);
 	std::thread *threads = new std::thread[num_threads];
 	for (int i = 0; i < num_threads; ++i)
@@ -81,7 +81,7 @@ void ParagraphVector::Train(int vec_dim, float **vecs0, float **vecs1,
 	std::default_random_engine generator(random_seed);
 
 	float alpha = starting_alpha_;
-	float min_alpha = starting_alpha_ * 0.001;
+	float min_alpha = starting_alpha_ * 0.001f;
 	int total_num_samples = num_rounds * num_samples;
 	//int total_num_samples = num_samples;
 
@@ -106,7 +106,7 @@ void ParagraphVector::Train(int vec_dim, float **vecs0, float **vecs1,
 			int edge_idx = edge_sample_dist_(generator);
 			int va = doc_word_net_.edges[edge_idx].va, vb = doc_word_net_.edges[edge_idx].vb;
 
-			ns_trainer.TrainPrediction(vecs0[va], vb, vecs1, alpha, tmp_neu1e,
+			ns_trainer.TrainEdge(vec_dim, vecs0[va], vb, vecs1, alpha, tmp_neu1e,
 				generator, true, true);
 		}
 	}

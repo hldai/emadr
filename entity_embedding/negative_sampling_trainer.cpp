@@ -1,5 +1,6 @@
 #include "negative_sampling_trainer.h"
 
+#include <cassert>
 #include <cmath>
 
 #include "math_utils.h"
@@ -33,6 +34,15 @@ float **NegativeSamplingTrainer::GetInitedVecs1(int num_objs, int vec_dim)
 	return vecs;
 }
 
+void NegativeSamplingTrainer::InitMatrix(float *matrix, int dim0, int dim1)
+{
+	std::default_random_engine generator(1217);
+	float rand_val = 4.0f * sqrtf(6.0f / (dim0 + dim1));
+	std::uniform_real_distribution<float> distribution(-rand_val, rand_val);
+	for (int i = 0; i < dim0 * dim1; ++i)
+		matrix[i] = distribution(generator);
+}
+
 double *NegativeSamplingTrainer::GetDefNegativeSamplingWeights(int *obj_cnts, int num_objs)
 {
 	double *weights = new double[num_objs];
@@ -41,8 +51,8 @@ double *NegativeSamplingTrainer::GetDefNegativeSamplingWeights(int *obj_cnts, in
 	return weights;
 }
 
-NegativeSamplingTrainer::NegativeSamplingTrainer(ExpTable *exp_table, int vec_dim, int num_objs1,
-	int num_negative_samples, std::discrete_distribution<int> *negative_sample_dist) : exp_table_(exp_table), vec_dim_(vec_dim),
+NegativeSamplingTrainer::NegativeSamplingTrainer(ExpTable *exp_table, int num_objs1,
+	int num_negative_samples, std::discrete_distribution<int> *negative_sample_dist) : exp_table_(exp_table),
 	num_objs1_(num_objs1), num_negative_samples_(num_negative_samples),
 	negative_sample_dist_(negative_sample_dist)
 {
@@ -52,13 +62,13 @@ NegativeSamplingTrainer::~NegativeSamplingTrainer()
 {
 }
 
-void NegativeSamplingTrainer::TrainPrediction(float *vec0, int obj1, float **vecs1, float alpha, float *tmp_neu1e,
+void NegativeSamplingTrainer::TrainEdge(int vec_dim, float *vec0, int obj1, float **vecs1, float alpha, float *tmp_neu1e,
 	std::default_random_engine &generator, bool update0, bool update1)
 {
-	for (int i = 0; i < vec_dim_; ++i)
+	for (int i = 0; i < vec_dim; ++i)
 		tmp_neu1e[i] = 0.0f;
 
-	const float lambda = alpha * 0.01;
+	const float lambda = alpha * 0.01f;
 	int target = obj1;
 	int label = 1;
 	for (int i = 0; i < num_negative_samples_ + 1; ++i)
@@ -71,7 +81,7 @@ void NegativeSamplingTrainer::TrainPrediction(float *vec0, int obj1, float **vec
 			label = 0;
 		}
 
-		float dot_product = MathUtils::DotProduct(vec0, vecs1[target], vec_dim_);
+		float dot_product = MathUtils::DotProduct(vec0, vecs1[target], vec_dim);
 		//if (isnan(dot_product))
 		//{
 		//	for (int i = 0; i < vec_dim_; ++i)
@@ -82,48 +92,71 @@ void NegativeSamplingTrainer::TrainPrediction(float *vec0, int obj1, float **vec
 		//printf("%f\n", dot_product);
 		float g = (label - exp_table_->getSigmaValue(dot_product)) * alpha;
 
-		for (int j = 0; j < vec_dim_; ++j)
+		for (int j = 0; j < vec_dim; ++j)
 			tmp_neu1e[j] += g * vecs1[target][j];
 		if (update1)
 		{
-			for (int j = 0; j < vec_dim_; ++j)
+			for (int j = 0; j < vec_dim; ++j)
 				vecs1[target][j] += g * vec0[j] - lambda * vecs1[target][j];
 		}
 	}
 
 	if (update0)
 	{
-		for (int j = 0; j < vec_dim_; ++j)
+		for (int j = 0; j < vec_dim; ++j)
 			vec0[j] += tmp_neu1e[j] - lambda * vec0[j];
 	}
 }
 
-void NegativeSamplingTrainer::CheckObject(float *cur_vec, float **vecs1)
+void NegativeSamplingTrainer::TrainEdgeMatrix(int dim0, int dim1, float *vec0, int obj1, float **vecs1, float *matrix, float alpha,
+	float *tmp_neu1e, std::default_random_engine &generator, bool update0, bool update1, bool update_matrix)
 {
-	//const int max_num_edges = 100;
-	//int vv[max_num_edges], weights[max_num_edges];
-	//int ecnt = 0;
-	//for (int i = 0; i < num_edges_ && edges_[i].va <= entity_index; ++i)
-	//{
-	//	if (edges_[i].va == entity_index)
-	//	{
-	//		vv[ecnt] = edges_[i].vb;
-	//		weights[ecnt++] = weights_[i];
-	//	}
-	//	if (edges_[i].vb == entity_index)
-	//	{
-	//		vv[ecnt] = edges_[i].va;
-	//		weights[ecnt++] = weights_[i];
-	//	}
-	//}
-	//float target_val = 0;
-	//for (int i = 0; i < ecnt; ++i)
-	//{
-	//	float dp = MathUtils::DotProduct(entity_vec, syn1_[vv[i]], vec_dim_);
-	//	printf("%d\t%d\t%f\n", vv[i], weights[i], dp);
-	//	target_val += weights[i] * MathUtils::DotProduct(entity_vec, syn1_[vv[i]], vec_dim_);
-	//}
+	if (update0)
+		for (int i = 0; i < dim0; ++i)
+			tmp_neu1e[i] = 0.0f;
 
+	const float nf = 0.001f;
+	int target = obj1;
+	int label = 1;
+	for (int i = 0; i < num_negative_samples_ + 1; ++i)
+	{
+		if (i != 0)
+		{
+			target = (*negative_sample_dist_)(generator);
+			if (target == obj1) continue;
+
+			label = 0;
+		}
+
+		float *cur_vec1 = vecs1[target];
+
+		float fval = MathUtils::XMY(vec0, dim0, cur_vec1, dim1, matrix);
+		//printf("%f ", fval);
+		assert(!isnan(fval));
+		float g = (label - exp_table_->getSigmaValue(fval)) * alpha;
+
+		if (update0)
+			for (int j = 0; j < dim0; ++j)
+				for (int k = 0; k < dim1; ++k)
+					tmp_neu1e[j] += g * cur_vec1[k] * matrix[j * dim0 + k];
+		if (update1)
+			for (int k = 0; k < dim1; ++k)
+				for (int j = 0; j < dim0; ++j)
+					cur_vec1[k] += g * vec0[j] * matrix[j * dim0 + k] - nf * alpha * cur_vec1[k];
+		if (update_matrix)
+			for (int j = 0; j < dim0; ++j)
+				for (int k = 0; k < dim1; ++k)
+					matrix[j * dim0 + k] += g * vec0[j] * cur_vec1[k] - nf * alpha * matrix[j * dim0 + k];
+		//printf("f %f %f %f\n", matrix[0 * vec0_dim_ + 0], g * vec0[0] * cur_vec1[0], vec0[0] * cur_vec1[0]);
+	}
+
+	if (update0)
+		for (int j = 0; j < dim0; ++j)
+			vec0[j] += tmp_neu1e[j] - nf * alpha * vec0[j];
+}
+
+void NegativeSamplingTrainer::CheckObject(int vec_dim, float *cur_vec, float **vecs1)
+{
 	const int k = 10;
 	int top_indices[k];
 	float vals[k];
@@ -131,7 +164,7 @@ void NegativeSamplingTrainer::CheckObject(float *cur_vec, float **vecs1)
 	float target_sum = 0;
 	for (int i = 0; i < num_objs1_; ++i)
 	{
-		float dp = MathUtils::DotProduct(cur_vec, vecs1[i], vec_dim_);
+		float dp = MathUtils::DotProduct(cur_vec, vecs1[i], vec_dim);
 		target_sum += exp(dp);
 
 		int pos = k - 1;

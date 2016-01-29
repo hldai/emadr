@@ -41,7 +41,7 @@ private:
 		std::default_random_engine &generator, float *dst_vec);
 
 	void trainMatrix(int *doc_indices, int num_docs, float *matrix, 
-		MatrixTrainer &matrix_trainer, float **doc_vecs, float **vecs1, 
+		NegativeSamplingTrainer &ns_trainer, float **doc_vecs, float **vecs1,
 		std::default_random_engine &generator);
 
 	void trainDocVectorWithMatrix(int num_entities, int *entities, int *entity_cnts, float *tmp_neu1e,
@@ -86,6 +86,7 @@ private:
 	unsigned long long next_random_ = 1;
 
 	int dst_dim_ = 0;
+	int dim1_ = 0;
 
 	int num_negative_samples_ = kNumNegSamples;
 	float starting_alpha_;

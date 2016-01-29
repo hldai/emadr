@@ -97,20 +97,20 @@ void JointTrainer::JointTrainingOMLThreaded(int vec_dim, int num_rounds, int num
 	doc_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, doc_vec_dim_);
 
 	ExpTable exp_table;
-	NegativeSamplingTrainer entity_ns_trainer(&exp_table, doc_vec_dim_, num_entities_,
+	NegativeSamplingTrainer entity_ns_trainer(&exp_table, num_entities_,
 		num_negative_samples, &entity_sample_dist_);
-	NegativeSamplingTrainer word_ns_trainer(&exp_table, doc_vec_dim_, num_words_,
+	NegativeSamplingTrainer word_ns_trainer(&exp_table, num_words_,
 		num_negative_samples, &word_sample_dist_);
 	// for both dw and de
-	NegativeSamplingTrainer doc_ns_trainer(&exp_table, doc_vec_dim_, num_docs_,
+	NegativeSamplingTrainer doc_ns_trainer(&exp_table, num_docs_,
 		num_negative_samples, &doc_sample_dist_);
 	printf("inited.\n");
 
 	int sum_ee_edge_weights = MathUtils::Sum(entity_net_.weights, entity_net_.num_edges);
 	int sum_de_edge_weights = MathUtils::Sum(entity_doc_net_.weights, entity_doc_net_.num_edges);
 	int sum_dw_edge_weights = MathUtils::Sum(doc_word_net_.weights, doc_word_net_.num_edges);
-	int sum_dew_edge_weights = 2 * num_docs_;
-	//sum_dew_edge_weights = 0;
+	int sum_dew_edge_weights = num_docs_;
+	sum_dew_edge_weights = 0;
 	int sum_weights = sum_ee_edge_weights + sum_de_edge_weights + sum_dw_edge_weights + sum_dew_edge_weights;
 	int num_samples_per_round = sum_weights;
 	//int num_samples_per_round = sum_dw_edge_weights;
@@ -168,7 +168,8 @@ void JointTrainer::JointTrainingOML(int seed, int num_rounds, int num_samples_pe
 	float alpha = starting_alpha_;  // TODO
 	for (int i = 0; i < num_rounds; ++i)
 	{
-		printf("round %d, alpha %f\n", i, alpha);
+		printf("\rround %d, alpha %f", i, alpha);
+		fflush(stdout);
 		//alpha *= 0.96f;
 		//if (alpha < starting_alpha_ * 0.1f)
 		//	alpha = starting_alpha_ * 0.1f;
@@ -185,39 +186,43 @@ void JointTrainer::JointTrainingOML(int seed, int num_rounds, int num_samples_pe
 			{
 				int edge_idx = ee_edge_sample_dist(generator);
 				Edge &edge = entity_net_.edges[edge_idx];
-				entity_ns_trainer.TrainPrediction(ee_vecs0_[edge.va], edge.vb, ee_vecs1_,
+				entity_ns_trainer.TrainEdge(doc_vec_dim_, ee_vecs0_[edge.va], edge.vb, ee_vecs1_,
 					alpha, tmp_neu1e, generator);
-				entity_ns_trainer.TrainPrediction(ee_vecs0_[edge.vb], edge.va, ee_vecs1_,
+				entity_ns_trainer.TrainEdge(doc_vec_dim_, ee_vecs0_[edge.vb], edge.va, ee_vecs1_,
 					alpha, tmp_neu1e, generator);
 			}
 			else if (net_idx == 1)
 			{
 				int edge_idx = de_edge_sample_dist(generator);
 				Edge &edge = entity_doc_net_.edges[edge_idx];
-				entity_ns_trainer.TrainPrediction(de_vecs_[edge.va], edge.vb, ee_vecs0_,
+				entity_ns_trainer.TrainEdge(doc_vec_dim_, dw_vecs_[edge.va], edge.vb, ee_vecs0_,
 					alpha, tmp_neu1e, generator);
 			}
 			else if (net_idx == 2)
 			{
 				int edge_idx = dw_edge_sample_dist(generator);
 				Edge &edge = doc_word_net_.edges[edge_idx];
-				word_ns_trainer.TrainPrediction(dw_vecs_[edge.va], edge.vb, word_vecs_,
+				word_ns_trainer.TrainEdge(doc_vec_dim_, dw_vecs_[edge.va], edge.vb, word_vecs_,
 					alpha, tmp_neu1e, generator);
 			}
 			else
 			{
 				int doc_idx = dwe_sample_dist(generator);
-				bool is_dw = we_sample_dist(generator);
-				if (is_dw)
-				{
-					doc_ns_trainer.TrainPrediction(doc_vecs_[doc_idx], doc_idx, dw_vecs_,
-						alpha, tmp_neu1e, generator);
-				}
-				else
-				{
-					doc_ns_trainer.TrainPrediction(doc_vecs_[doc_idx], doc_idx, de_vecs_,
-						alpha, tmp_neu1e, generator);
-				}
+				doc_ns_trainer.TrainEdge(doc_vec_dim_, de_vecs_[doc_idx], doc_idx, dw_vecs_,
+					alpha, tmp_neu1e, generator);
+				doc_ns_trainer.TrainEdge(doc_vec_dim_, dw_vecs_[doc_idx], doc_idx, de_vecs_,
+					alpha, tmp_neu1e, generator);
+				//bool is_dw = we_sample_dist(generator);
+				//if (is_dw)
+				//{
+				//	doc_ns_trainer.TrainPrediction(doc_vecs_[doc_idx], doc_idx, dw_vecs_,
+				//		alpha, tmp_neu1e, generator);
+				//}
+				//else
+				//{
+				//	doc_ns_trainer.TrainPrediction(doc_vecs_[doc_idx], doc_idx, de_vecs_,
+				//		alpha, tmp_neu1e, generator);
+				//}
 			}
 		}
 	}
@@ -245,9 +250,9 @@ void JointTrainer::JointTrainingThreaded(int entity_vec_dim, int word_vec_dim, i
 	doc_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, doc_vec_dim_);
 	word_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_words_, word_vec_dim_);
 	ExpTable exp_table;
-	NegativeSamplingTrainer entity_ns_trainer(&exp_table, entity_vec_dim_, num_entities_, 
+	NegativeSamplingTrainer entity_ns_trainer(&exp_table, num_entities_, 
 		num_negative_samples, &entity_sample_dist_);
-	NegativeSamplingTrainer word_ns_trainer(&exp_table, word_vec_dim_, num_words_,
+	NegativeSamplingTrainer word_ns_trainer(&exp_table, num_words_,
 		num_negative_samples, &word_sample_dist_);
 	printf("inited.\n");
 
@@ -294,7 +299,7 @@ void JointTrainer::JointTraining(int seed, int num_rounds, int num_samples_per_r
 	std::default_random_engine generator(seed);
 
 	const float starting_alpha_ = 0.05f;
-	const float min_alpha = starting_alpha_ * 0.001;
+	const float min_alpha = starting_alpha_ * 0.001f;
 	int total_num_samples = num_rounds * num_samples_per_round;
 
 	float *tmp_entity_neu1e = new float[entity_vec_dim_];
@@ -320,24 +325,24 @@ void JointTrainer::JointTraining(int seed, int num_rounds, int num_samples_per_r
 			{
 				int edge_idx = ee_edge_sample_dist(generator);
 				Edge &edge = entity_net_.edges[edge_idx];
-				entity_ns_trainer.TrainPrediction(ee_vecs0_[edge.va], edge.vb, ee_vecs1_,
+				entity_ns_trainer.TrainEdge(entity_vec_dim_, ee_vecs0_[edge.va], edge.vb, ee_vecs1_,
 					alpha, tmp_entity_neu1e, generator);
-				entity_ns_trainer.TrainPrediction(ee_vecs0_[edge.vb], edge.va, ee_vecs1_,
+				entity_ns_trainer.TrainEdge(entity_vec_dim_, ee_vecs0_[edge.vb], edge.va, ee_vecs1_,
 					alpha, tmp_entity_neu1e, generator);
 			}
 			else if (net_idx == 1)
 			{
 				int edge_idx = de_edge_sample_dist(generator);
 				Edge &edge = entity_doc_net_.edges[edge_idx];
-				entity_ns_trainer.TrainPrediction(doc_vecs_[edge.va], edge.vb, ee_vecs0_,
+				entity_ns_trainer.TrainEdge(entity_vec_dim_, doc_vecs_[edge.va], edge.vb, ee_vecs0_,
 					alpha, tmp_entity_neu1e, generator);
 			}
 			else
 			{
 				int edge_idx = dw_edge_sample_dist(generator);
 				Edge &edge = doc_word_net_.edges[edge_idx];
-				word_ns_trainer.TrainPrediction(doc_vecs_[edge.va] + doc_vec_dim_ - word_vec_dim_, edge.vb, word_vecs_, 
-					alpha, tmp_word_neu1e, generator);
+				word_ns_trainer.TrainEdge(word_vec_dim_, doc_vecs_[edge.va] + doc_vec_dim_ - word_vec_dim_,
+					edge.vb, word_vecs_, alpha, tmp_word_neu1e, generator);
 			}
 		}
 	}
@@ -358,7 +363,7 @@ void JointTrainer::TrainEntityNetThreaded(int vec_dim, int num_rounds, int num_t
 	ee_vecs0_ = NegativeSamplingTrainer::GetInitedVecs0(num_entities_, entity_vec_dim_);
 	ee_vecs1_ = NegativeSamplingTrainer::GetInitedVecs1(num_entities_, entity_vec_dim_);
 	ExpTable exp_table;
-	NegativeSamplingTrainer ns_trainer(&exp_table, entity_vec_dim_, num_entities_, num_negative_samples, &entity_sample_dist_);
+	NegativeSamplingTrainer ns_trainer(&exp_table, num_entities_, num_negative_samples, &entity_sample_dist_);
 	printf("inited.\n");
 
 	int sum_ee_edge_weights = MathUtils::Sum(entity_net_.weights, entity_net_.num_edges);
@@ -400,15 +405,15 @@ void JointTrainer::TrainEntityNet(int seed, int num_training_rounds, int num_sam
 		for (int j = 0; j < num_samples_per_round; ++j)
 		{
 			int edge_idx = ee_edge_sample_dist(generator);
-			ns_trainer.TrainPrediction(ee_vecs0_[entity_net_.edges[edge_idx].va], entity_net_.edges[edge_idx].vb, ee_vecs1_,
+			ns_trainer.TrainEdge(entity_vec_dim_, ee_vecs0_[entity_net_.edges[edge_idx].va], entity_net_.edges[edge_idx].vb, ee_vecs1_,
 				alpha, tmp_neu1e, generator);
-			ns_trainer.TrainPrediction(ee_vecs0_[entity_net_.edges[edge_idx].vb], entity_net_.edges[edge_idx].va, ee_vecs1_,
+			ns_trainer.TrainEdge(entity_vec_dim_, ee_vecs0_[entity_net_.edges[edge_idx].vb], entity_net_.edges[edge_idx].va, ee_vecs1_,
 				alpha, tmp_neu1e, generator);
 		}
 		if (seed < 10)
 		{
 			printf("\n");
-			ns_trainer.CheckObject(ee_vecs0_[1], ee_vecs1_);
+			ns_trainer.CheckObject(entity_vec_dim_, ee_vecs0_[1], ee_vecs1_);
 			//closeEntities(1);
 		}
 	}
@@ -426,7 +431,7 @@ void JointTrainer::TrainDocEntityNetThreaded(const char *entity_vec_file_name, i
 	printf("initing model....\n");
 	doc_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, entity_vec_dim_);
 	ExpTable exp_table;
-	NegativeSamplingTrainer ns_trainer(&exp_table, entity_vec_dim_, num_entities_, num_negative_samples, &entity_sample_dist_);
+	NegativeSamplingTrainer ns_trainer(&exp_table, num_entities_, num_negative_samples, &entity_sample_dist_);
 	printf("inited.\n");
 
 	int sum_ed_edge_weights = MathUtils::Sum(entity_doc_net_.weights, entity_doc_net_.num_edges);
@@ -467,7 +472,8 @@ void JointTrainer::TrainDocEntityNet(int seed, int num_rounds, int num_samples_p
 		for (int j = 0; j < num_samples_per_round; ++j)
 		{
 			int edge_idx = edge_sample_dist(generator);
-			ns_trainer.TrainPrediction(doc_vecs_[entity_doc_net_.edges[edge_idx].va], entity_doc_net_.edges[edge_idx].vb, ee_vecs0_,
+			ns_trainer.TrainEdge(entity_vec_dim_, doc_vecs_[entity_doc_net_.edges[edge_idx].va],
+				entity_doc_net_.edges[edge_idx].vb, ee_vecs0_,
 				alpha, tmp_neu1e, generator, true, false);
 		}
 	}
