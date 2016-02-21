@@ -20,7 +20,7 @@ ParagraphVector::ParagraphVector(const char *doc_word_net_file_name, float start
 	num_docs_ = doc_word_net_.num_vertices_left;
 
 	int *word_cnts = doc_word_net.CountRightVertices();
-	double *word_sample_weights = NegativeSamplingTrainer::GetDefNegativeSamplingWeights(word_cnts, num_words_);
+	float *word_sample_weights = NegativeSamplingTrainer::GetDefNegativeSamplingWeights(word_cnts, num_words_);
 	word_sample_dist_ = std::discrete_distribution<int>(word_sample_weights, word_sample_weights + num_words_);
 	delete[] word_cnts;
 	delete[] word_sample_weights;

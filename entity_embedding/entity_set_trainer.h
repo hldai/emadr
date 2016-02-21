@@ -4,7 +4,6 @@
 #include <cstdio>
 #include <random>
 
-#include "matrix_trainer.h"
 #include "negative_sampling_trainer.h"
 #include "vector_dict.h"
 
@@ -32,9 +31,8 @@ private:
 	void trainDocVectorsWithNegativeSamplingMem(int *doc_indices, int doc_beg, int doc_end, float **vecs1,
 		NegativeSamplingTrainer &ns_trainer, int seed, float **dst_vecs);
 
-	float *pretrainMatrix(MatrixTrainer &matrix_trainer);
 	void trainDocVectorsWithNegativeSamplingM(int vec_dim, float *matrix, const char *dst_file_name,
-		MatrixTrainer &matrix_trainer);
+		NegativeSamplingTrainer &ns_trainer);
 
 	void trainDocVectorWithFixedEntityVecs(int num_entities, int *entities, int *entity_cnts,
 		float **entity_vecs, float *tmp_neu1e, NegativeSamplingTrainer &ns_trainer, 
@@ -45,7 +43,7 @@ private:
 		std::default_random_engine &generator);
 
 	void trainDocVectorWithMatrix(int num_entities, int *entities, int *entity_cnts, float *tmp_neu1e,
-		float *dst_vec, float *matrix, MatrixTrainer &matrix_trainer, std::default_random_engine &generator);
+		float *dst_vec, float *matrix, NegativeSamplingTrainer &ns_trainer, std::default_random_engine &generator);
 
 	void sampleDocs(int num_docs, int *dst_indices, std::default_random_engine &generator);
 

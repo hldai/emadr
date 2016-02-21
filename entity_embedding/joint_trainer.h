@@ -5,6 +5,7 @@
 #include "negative_sampling_trainer.h"
 #include "edge_net.h"
 #include "adj_list_net.h"
+#include "net_edge_sampler.h"
 
 class JointTrainer
 {
@@ -13,12 +14,29 @@ public:
 		const char *doc_words_file_name);
 	~JointTrainer();
 
+	void TrainCMThreaded(int vec_dim, int num_rounds, int num_threads, int num_negative_samples, float starting_alpha,
+		float min_alpha, const char *dst_doc_vecs_file_name);
+
+	void TrainCM(int num_rounds, int num_samples_per_round, float *cm_params_e,
+		std::discrete_distribution<int> &ee_edge_sample_dist, std::discrete_distribution<int> &de_edge_sample_dist, 
+		std::discrete_distribution<int> &dw_edge_sample_dist, std::discrete_distribution<int> &net_sample_dist,
+		NegativeSamplingTrainer &entity_ns_trainer, NegativeSamplingTrainer &word_ns_trainer, std::default_random_engine *generator,
+		bool train_cm_params);
+
+	void TrainCMParams(float *cm_params, bool complement, float **vecs0, float **vecs1, Edge *edges, std::discrete_distribution<int> &edge_sample_dist,
+		NegativeSamplingTrainer &ns_trainer, std::default_random_engine &generator);
+
 	void JointTrainingOMLThreaded(int vec_dim, int num_rounds, int num_threads, int num_negative_samples, float starting_alpha, 
 		float ws_rate, float min_alpha, const char *dst_dedw_vec_file_name, const char *dst_mixed_vecs_file_name = 0, 
 		const char *dst_word_vecs_file_name = 0, const char *dst_entity_vecs_file_name = 0);
+	//void JointTrainingOML(int seed, int num_rounds, int num_samples_per_round, std::discrete_distribution<int> &ee_edge_sample_dist,
+	//	std::discrete_distribution<int> &de_edge_sample_dist, std::discrete_distribution<int> &dw_edge_sample_dist, 
+	//	std::uniform_int_distribution<int> &dwe_sample_dist, std::discrete_distribution<int> &net_sample_dist, 
+	//	std::bernoulli_distribution &we_sample_dist, NegativeSamplingTrainer &entity_ns_trainer,
+	//	NegativeSamplingTrainer &word_ns_trainer, NegativeSamplingTrainer &doc_ns_trainer);
 	void JointTrainingOML(int seed, int num_rounds, int num_samples_per_round, std::discrete_distribution<int> &ee_edge_sample_dist,
-		std::discrete_distribution<int> &de_edge_sample_dist, std::discrete_distribution<int> &dw_edge_sample_dist, 
-		std::uniform_int_distribution<int> &dwe_sample_dist, std::discrete_distribution<int> &net_sample_dist, 
+		std::discrete_distribution<int> &de_edge_sample_dist,
+		std::uniform_int_distribution<int> &dwe_sample_dist, std::discrete_distribution<int> &net_sample_dist,
 		std::bernoulli_distribution &we_sample_dist, NegativeSamplingTrainer &entity_ns_trainer,
 		NegativeSamplingTrainer &word_ns_trainer, NegativeSamplingTrainer &doc_ns_trainer);
 
@@ -61,6 +79,8 @@ private:
 
 	EdgeNet doc_word_net_;
 	int num_words_ = 0;
+
+	NetEdgeSampler *dw_edge_sampler_ = 0;
 
 	float **ee_vecs0_ = 0;
 	float **ee_vecs1_ = 0;

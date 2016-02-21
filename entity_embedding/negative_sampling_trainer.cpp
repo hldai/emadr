@@ -34,6 +34,14 @@ float **NegativeSamplingTrainer::GetInitedVecs1(int num_objs, int vec_dim)
 	return vecs;
 }
 
+float *NegativeSamplingTrainer::GetInitedCMParams(int vec_dim)
+{
+	float *cm_params = new float[vec_dim];
+	for (int i = 0; i < vec_dim; ++i)
+		cm_params[i] = (float)rand() / RAND_MAX;
+	return cm_params;
+}
+
 void NegativeSamplingTrainer::InitMatrix(float *matrix, int dim0, int dim1)
 {
 	std::default_random_engine generator(1217);
@@ -43,11 +51,11 @@ void NegativeSamplingTrainer::InitMatrix(float *matrix, int dim0, int dim1)
 		matrix[i] = distribution(generator);
 }
 
-double *NegativeSamplingTrainer::GetDefNegativeSamplingWeights(int *obj_cnts, int num_objs)
+float *NegativeSamplingTrainer::GetDefNegativeSamplingWeights(int *obj_cnts, int num_objs)
 {
-	double *weights = new double[num_objs];
+	float *weights = new float[num_objs];
 	for (int i = 0; i < num_objs; ++i)
-		weights[i] = pow(obj_cnts[i], 0.75);
+		weights[i] = powf(obj_cnts[i], 0.75f);
 	return weights;
 }
 
@@ -82,31 +90,80 @@ void NegativeSamplingTrainer::TrainEdge(int vec_dim, float *vec0, int obj1, floa
 		}
 
 		float dot_product = MathUtils::DotProduct(vec0, vecs1[target], vec_dim);
-		//if (isnan(dot_product))
-		//{
-		//	for (int i = 0; i < vec_dim_; ++i)
-		//		printf("%f ", vec0[i]);
-		//	printf("\n");
-		//	printf("NAN!\n");
-		//}
-		//printf("%f\n", dot_product);
 		float g = (label - exp_table_->getSigmaValue(dot_product)) * alpha;
 
 		for (int j = 0; j < vec_dim; ++j)
 			tmp_neu1e[j] += g * vecs1[target][j];
 		if (update1)
-		{
 			for (int j = 0; j < vec_dim; ++j)
 				vecs1[target][j] += g * vec0[j] - lambda * vecs1[target][j];
-		}
 	}
 
 	if (update0)
-	{
 		for (int j = 0; j < vec_dim; ++j)
 			vec0[j] += tmp_neu1e[j] - lambda * vec0[j];
-	}
 }
+
+//void NegativeSamplingTrainer::TrainEdgeCM(int vec_dim, float *vec0, int obj1, float **vecs1, float *cm_params, bool complement,
+//	float alpha, float *tmp_neu1e, float *tmp_cme, std::default_random_engine &generator, bool update0, 
+//	bool update1, bool update_cm_params)
+//{
+//	int full_vec_dim = vec_dim * 2;
+//	if (update0)
+//		for (int i = 0; i < full_vec_dim; ++i)
+//			tmp_neu1e[i] = 0.0f;
+//	if (update_cm_params)
+//		for (int i = 0; i < vec_dim; ++i)
+//			tmp_cme[i] = 0.0f;
+//
+//	const float lambda = alpha * 0.01f;
+//	int target = obj1;
+//	int label = 1;
+//	for (int i = 0; i < num_negative_samples_ + 1; ++i)
+//	{
+//		if (i != 0)
+//		{
+//			target = (*negative_sample_dist_)(generator);
+//			if (target == obj1) continue;
+//
+//			label = 0;
+//		}
+//
+//		float fval = calcCMEnergy(vec_dim, vec0, vecs1[target], cm_params);
+//		//if (isnan(fval))
+//		//{
+//		//	for (int i = 0; i < vec_dim; ++i)
+//		//		printf("%f ", vec0[i]);
+//		//	printf("\n");
+//		//}
+//		assert(!isnan(fval));
+//		float g = (label - exp_table_->getSigmaValue(fval)) * alpha;
+//
+//		if (update0)
+//			for (int j = 0; j < full_vec_dim; ++j)
+//				tmp_neu1e[j] += g * vecs1[target][j / 2] * cm_params[j];
+//		if (update1)
+//		{
+//			for (int j = 0; j < vec_dim; ++j)
+//			{
+//				vecs1[target][j] += g * (cm_params[2 * j] * vec0[2 * j] + cm_params[2 * j + 1] * vec0[2 * j + 1])
+//					- lambda * vecs1[target][j];
+//			}
+//		}
+//		if (update_cm_params)
+//		{
+//			for (int j = 0; j < full_vec_dim; ++j)
+//				tmp_cme[j] += g * vecs1[target][j / 2] * vec0[j];
+//		}
+//	}
+//
+//	if (update0)
+//		for (int i = 0; i < full_vec_dim; ++i)
+//			vec0[i] += tmp_neu1e[i] - lambda * vec0[i];
+//	if (update_cm_params)
+//		for (int i = 0; i < full_vec_dim; ++i)
+//			cm_params[i] += tmp_cme[i] - lambda * cm_params[i];
+//}
 
 void NegativeSamplingTrainer::TrainEdgeMatrix(int dim0, int dim1, float *vec0, int obj1, float **vecs1, float *matrix, float alpha,
 	float *tmp_neu1e, std::default_random_engine &generator, bool update0, bool update1, bool update_matrix)
@@ -224,4 +281,134 @@ void NegativeSamplingTrainer::CloseVectors(float **vecs, int num_vecs, int vec_d
 	{
 		printf("%d\t%f\n", top_indices[i], vals[i]);
 	}
+}
+
+void NegativeSamplingTrainer::trainEdgeCM(int vec_dim, float *vec0, int obj1, float **vecs1, float *cm_params,
+	float alpha, float *tmp_neu1e, float *tmp_cme, std::default_random_engine &generator,
+	bool update0 = true, bool update1 = true, bool update_cm_params = true)
+{
+	if (update0)
+		for (int i = 0; i < (vec_dim << 1); ++i)
+			tmp_neu1e[i] = 0.0f;
+	if (update_cm_params)
+		for (int i = 0; i < vec_dim; ++i)
+			tmp_cme[i] = 0.0f;
+
+	const float lambda = alpha * 0.01f;
+	int target = obj1;
+	int label = 1;
+	for (int i = 0; i < num_negative_samples_ + 1; ++i)
+	{
+		if (i != 0)
+		{
+			target = (*negative_sample_dist_)(generator);
+			if (target == obj1) continue;
+
+			label = 0;
+		}
+
+		float fval = calcCMEnergy(vec_dim, vec0, vecs1[target], cm_params);
+		//if (isnan(fval))
+		//{
+		//	for (int i = 0; i < vec_dim; ++i)
+		//		printf("%f ", vec0[i]);
+		//	printf("\n");
+		//}
+		assert(!isnan(fval));
+		float g = (label - exp_table_->getSigmaValue(fval)) * alpha;
+
+		if (update0)
+		{
+			for (int j = 0; j < vec_dim; ++j)
+			{
+				tmp_neu1e[j << 1] += g * vecs1[target][j] * cm_params[j];
+				tmp_neu1e[(j << 1) + 1] += g * vecs1[target][j] * (1 - cm_params[j]);
+			}
+		}
+		if (update1)
+		{
+			for (int j = 0; j < vec_dim; ++j)
+			{
+				vecs1[target][j] += g * (cm_params[j] * vec0[j << 1] + (1 - cm_params[j]) * vec0[(j << 1) + 1])
+					- lambda * vecs1[target][j];
+			}
+		}
+		if (update_cm_params)
+		{
+			for (int j = 0; j < vec_dim; ++j)
+				tmp_cme[j] += g * vecs1[target][j] * (vec0[j << 1] - vec0[(j << 1) + 1]);
+		}
+	}
+
+	if (update0)
+		for (int i = 0; i < (vec_dim << 1); ++i)
+			vec0[i] += tmp_neu1e[i] - lambda * vec0[i];
+	if (update_cm_params)
+		for (int i = 0; i < vec_dim; ++i)
+			cm_params[i] += tmp_cme[i] - lambda * (cm_params[i] - 0.5f);
+}
+
+void NegativeSamplingTrainer::trainEdgeCMComplement(int vec_dim, float *vec0, int obj1, float **vecs1, float *cm_params,
+	float alpha, float *tmp_neu1e, float *tmp_cme, std::default_random_engine &generator,
+	bool update0 = true, bool update1 = true, bool update_cm_params = true)
+{
+	if (update0)
+		for (int i = 0; i < (vec_dim << 1); ++i)
+			tmp_neu1e[i] = 0.0f;
+	if (update_cm_params)
+		for (int i = 0; i < vec_dim; ++i)
+			tmp_cme[i] = 0.0f;
+
+	const float lambda = alpha * 0.01f;
+	int target = obj1;
+	int label = 1;
+	for (int i = 0; i < num_negative_samples_ + 1; ++i)
+	{
+		if (i != 0)
+		{
+			target = (*negative_sample_dist_)(generator);
+			if (target == obj1) continue;
+
+			label = 0;
+		}
+
+		float fval = calcCMEnergyComplement(vec_dim, vec0, vecs1[target], cm_params);
+		//if (isnan(fval))
+		//{
+		//	for (int i = 0; i < vec_dim; ++i)
+		//		printf("%f ", vec0[i]);
+		//	printf("\n");
+		//}
+		assert(!isnan(fval));
+		float g = (label - exp_table_->getSigmaValue(fval)) * alpha;
+
+		if (update0)
+		{
+			for (int j = 0; j < vec_dim; ++j)
+			{
+				tmp_neu1e[j << 1] += g * vecs1[target][j] * (1 - cm_params[j]);
+				tmp_neu1e[(j << 1) + 1] += g * vecs1[target][j] * cm_params[j];
+			}
+		}
+		if (update1)
+		{
+			for (int j = 0; j < vec_dim; ++j)
+			{
+				vecs1[target][j] += g * ((1 - cm_params[j]) * vec0[j << 1] + cm_params[j] * vec0[(j << 1) + 1])
+					- lambda * vecs1[target][j];
+			}
+		}
+		if (update_cm_params)
+		{
+			for (int j = 0; j < vec_dim; ++j)
+				tmp_cme[j] += g * vecs1[target][j] * (vec0[(j << 1) + 1] - vec0[j << 1]);
+		}
+	}
+
+	if (update0)
+		for (int i = 0; i < (vec_dim << 1); ++i)
+			vec0[i] += tmp_neu1e[i] - lambda * vec0[i];
+	if (update_cm_params)
+		for (int i = 0; i < vec_dim; ++i)
+			cm_params[i] += tmp_cme[i] - lambda * (cm_params[i] - 0.5f);
 }

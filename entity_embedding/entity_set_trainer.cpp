@@ -85,14 +85,15 @@ void EntitySetTrainer::TrainM(const char *doc_entity_list_file_name, int dst_dim
 
 	const int num_iter = 5;
 	float *matrix = new float[dst_dim * dim1_];
-	MatrixTrainer::InitMatrix(matrix, dst_dim, dim1_);
+	NegativeSamplingTrainer::InitMatrix(matrix, dst_dim, dim1_);
 	for (int i = 0; i < num_iter; ++i)
 	{
 		printf("matrix norm: %f\n", MathUtils::NormSqr(matrix, dst_dim * dim1_));
 
 		printf("pre calc vectors1 ...\n");
-		MatrixTrainer::PreCalcVecs1(matrix, dst_dim, dim1_, vec_dict_.vecs(),
-			num_entity_vecs, prec_vecs1);
+		// TODO
+		//NegativeSamplingTrainer::PreCalcVecs1(matrix, dst_dim, dim1_, vec_dict_.vecs(),
+		//	num_entity_vecs, prec_vecs1);
 
 		sampleDocs(num_pre_iter_samples, doc_samples, generator);
 
@@ -109,8 +110,9 @@ void EntitySetTrainer::TrainM(const char *doc_entity_list_file_name, int dst_dim
 	}
 
 	printf("pre calc vectors1 ...\n");
-	MatrixTrainer::PreCalcVecs1(matrix, dst_dim, dim1_, vec_dict_.vecs(),
-		num_entity_vecs, prec_vecs1);
+	// TODO
+	//MatrixTrainer::PreCalcVecs1(matrix, dst_dim, dim1_, vec_dict_.vecs(),
+	//	num_entity_vecs, prec_vecs1);
 	printf("training vectors ...\n");
 	trainDocVectorsThreaded(0, num_docs_, prec_vecs1, ns_trainer, doc_vecs, 4);
 	//trainDocVectorsWithNegativeSamplingM(dst_dim, matrix, dst_doc_vec_file_name, matrix_trainer);
@@ -299,20 +301,8 @@ void EntitySetTrainer::trainMatrix(int *doc_indices, int num_docs, float *matrix
 	}
 }
 
-float *EntitySetTrainer::pretrainMatrix(MatrixTrainer &matrix_trainer)
-{
-	int vec1_dim = vec_dict_.vec_len();
-	float *matrix = new float[dst_dim_ * vec1_dim];
-	std::fill(matrix, matrix + dst_dim_ * vec1_dim, 0.0f);
-
-	float *tmp_neu1e = new float[dst_dim_];
-	float *doc_vec = new float[dst_dim_];
-
-	return matrix;
-}
-
 void EntitySetTrainer::trainDocVectorsWithNegativeSamplingM(int vec_dim, float *matrix, const char *dst_file_name,
-	MatrixTrainer &matrix_trainer)
+	NegativeSamplingTrainer &ns_trainer)
 {
 	FILE *fp = fopen(dst_file_name, "wb");
 	assert(fp != NULL);
@@ -358,11 +348,9 @@ void EntitySetTrainer::trainDocVectorsWithNegativeSamplingM(int vec_dim, float *
 			//listPositiveEntityScores(doc_entities_[i], nums_doc_entities_[i], doc_vec);
 			//testDocVec(doc_entities_[i], nums_doc_entities_[i], doc_vec);
 			trainDocVectorWithMatrix(nums_doc_entities_[i], doc_entities_[i], doc_entity_cnts_[i], tmp_neu1e,
-				doc_vec, matrix, matrix_trainer, generator);
+				doc_vec, matrix, ns_trainer, generator);
 			//printf("%f\n", MathUtils::NormSqr(matrix, vec_dim * vec1_dim));
 			printf("%d\n", i);
-			matrix_trainer.ListScores(nums_doc_entities_[i], doc_entities_[i], doc_vec,
-				vec_dict_.vecs(), matrix);
 			//testDocVec(doc_entities_[i], nums_doc_entities_[i], doc_vec);
 			//listPositiveEntityScores(doc_entities_[i], nums_doc_entities_[i], doc_vec);
 			fwrite(doc_vec, sizeof(float), vec_dim, fp);
@@ -379,9 +367,9 @@ void EntitySetTrainer::trainDocVectorsWithNegativeSamplingM(int vec_dim, float *
 }
 
 void EntitySetTrainer::trainDocVectorWithMatrix(int num_entities, int *entities, int *entity_cnts, float *tmp_neu1e,
-	float *dst_vec, float *matrix, MatrixTrainer &matrix_trainer, std::default_random_engine &generator)
+	float *dst_vec, float *matrix, NegativeSamplingTrainer &ns_trainer, std::default_random_engine &generator)
 {
-	int vec_len = matrix_trainer.vec0_dim();
+	int vec_len = dst_dim_;
 	NegativeSamplingTrainer::InitVec0Def(dst_vec, vec_len);
 	//makeRandomVec(dst_vec, vec_len);
 
@@ -404,7 +392,7 @@ void EntitySetTrainer::trainDocVectorWithMatrix(int num_entities, int *entities,
 		for (int j = 0; j < num_entities; ++j)
 		{
 			for (int k = 0; k < entity_cnts[j]; ++k)
-				matrix_trainer.TrainPrediction(dst_vec, entities[j], vec_dict_.vecs(), matrix,
+				ns_trainer.TrainEdgeMatrix(dst_dim_, dim1_, dst_vec, entities[j], vec_dict_.vecs(), matrix,
 					alpha, tmp_neu1e, generator, true, false, false);
 		}
 		alpha *= 0.97f;

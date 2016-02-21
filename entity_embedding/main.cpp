@@ -8,10 +8,12 @@
 
 #include "entity_set_trainer.h"
 #include "entity_vec_trainer.h"
+#include "io_utils.h"
 #include "joint_trainer.h"
 #include "math_utils.h"
+#include "net_edge_sampler.h"
 #include "paragraph_vector.h"
-#include "io_utils.h"
+#include "eadocvectrainer.h"
 
 void TrainParagraphVectors()
 {
@@ -137,7 +139,7 @@ void JointTrainingOML20NG(int argc, char **argv)
 {
 	const char *entity_net_file_name = "e:/dc/20ng_bydate/weighted_entity_edge_list.txt";
 	const char *doc_entity_net_file_name = "e:/dc/20ng_bydate/doc_entities.bin";
-	const char *doc_words_file_name = "e:/dc/20ng_bydate/all_docs_dw_net.bin";
+	const char *doc_words_file_name = "e:/dc/20ng_bydate/all_docs_dw_net_short.bin";
 	const char *dst_dedw_vecs_file_name = "e:/dc/20ng_bydate/vecs/dedw_vecs.bin";
 
 	//const char *entity_net_file_name = "/home/dhl/data/dc/20ng_bydate/weighted_entity_edge_list.txt";
@@ -145,10 +147,10 @@ void JointTrainingOML20NG(int argc, char **argv)
 	//const char *doc_words_file_name = "/home/dhl/data/dc/20ng_bydate/all_docs_dw_net.bin";
 	//const char *dst_dedw_vecs_file_name = "/home/dhl/data/dc/20ng_bydate/dedw_vecs.bin";
 
-	int doc_vec_dim = 100;
+	int doc_vec_dim = 50;
 	int num_rounds = 10;
 	int num_threads = 4;
-	int num_negative_samples = 10;
+	int num_negative_samples = 5;
 	float starting_alpha = 0.06f;
 	float ws_rate = 0.7f;
 	float min_alpha = 0.0001f;
@@ -169,27 +171,6 @@ void JointTrainingOML20NG(int argc, char **argv)
 	printf("vec_dim: %d\nnum_rounds: %d\nnum_threads: %d\nnum_neg_samples: %d\nstarting_alpha: %f\nws_rate: %f\nmin_alpha: %f\n",
 		doc_vec_dim, num_rounds, num_threads, num_negative_samples, starting_alpha, ws_rate, min_alpha);
 
-	//const int max_path = 256;
-	//char dst_mixed_vecs_file_name[max_path];
-	//char dst_word_vecs_file_name[max_path];
-	//char dst_entity_vecs_file_name[max_path];
-
-	//sprintf(dst_mixed_vecs_file_name, "e:/dc/20ng_bydate/vecs/all_doc_vec_joint_oml_mixed_%d.bin", doc_vec_dim,
-	//	num_rounds, num_negative_samples);
-	//sprintf(dst_dedw_vecs_file_name, "/home/dhl/data/dc/20ng_bydate/vecs/all_doc_vec_joint_oml_%d.bin",
-	//	doc_vec_dim, num_rounds, num_negative_samples);
-	//sprintf(dst_mixed_vecs_file_name, "/home/dhl/data/dc/20ng_bydate/vecs/all_doc_vec_joint_oml_mixed_%d.bin",
-	//	doc_vec_dim, num_rounds, num_negative_samples);
-
-	//sprintf(dst_word_vecs_file_name, "e:/dc/20ng_bydate/vecs/word_vecs_joint_oml_%d.bin", doc_vec_dim,
-	//	num_rounds, num_negative_samples);
-	//sprintf(dst_entity_vecs_file_name, "e:/dc/20ng_bydate/vecs/entity_vecs_joint_oml_%d.bin", doc_vec_dim,
-	//	num_rounds, num_negative_samples);
-
-	//sprintf(dst_dedw_vecs_file_name, "e:/dc/20ng_bydate/vecs/all_doc_vec_joint_oml_%d_test.bin", doc_vec_dim,
-	//	num_rounds, num_negative_samples);
-	//sprintf(dst_mixed_vecs_file_name, "e:/dc/20ng_bydate/vecs/all_doc_vec_joint_oml_mixed_%d_test.bin", doc_vec_dim,
-	//	num_rounds, num_negative_samples);
 	JointTrainer jt(entity_net_file_name, doc_entity_net_file_name, doc_words_file_name);
 	//jt.JointTrainingOMLThreaded(doc_vec_dim, num_rounds, num_threads, num_negative_samples, 
 	//	starting_alpha, ws_rate, min_alpha, dst_dedw_vecs_file_name, dst_mixed_vecs_file_name, dst_word_vecs_file_name,
@@ -198,28 +179,158 @@ void JointTrainingOML20NG(int argc, char **argv)
 		starting_alpha, ws_rate, min_alpha, dst_dedw_vecs_file_name);
 }
 
+void JointTrainingCM20NG(int argc, char **argv)
+{
+	const char *entity_net_file_name = "e:/dc/20ng_bydate/weighted_entity_edge_list.txt";
+	const char *doc_entity_net_file_name = "e:/dc/20ng_bydate/doc_entities.bin";
+	const char *doc_words_file_name = "e:/dc/20ng_bydate/all_docs_dw_net.bin";
+	const char *dst_doc_vecs_file_name = "e:/dc/20ng_bydate/vecs/doc_vecs_0.bin";
+
+	//const char *entity_net_file_name = "/home/dhl/data/dc/20ng_bydate/weighted_entity_edge_list.txt";
+	//const char *doc_entity_net_file_name = "/home/dhl/data/dc/20ng_bydate/doc_entities.bin";
+	//const char *doc_words_file_name = "/home/dhl/data/dc/20ng_bydate/all_docs_dw_net.bin";
+	//const char *dst_dedw_vecs_file_name = "/home/dhl/data/dc/20ng_bydate/dedw_vecs.bin";
+
+	int doc_vec_dim = 50;
+	int num_rounds = 10;
+	int num_threads = 4;
+	int num_negative_samples = 5;
+	float starting_alpha = 0.06f;
+	float min_alpha = 0.0001f;
+
+	if (argc >= 7)
+	{
+		doc_vec_dim = atoi(argv[1]);
+		num_rounds = atoi(argv[2]);
+		num_threads = atoi(argv[3]);
+		num_negative_samples = atoi(argv[4]);
+		starting_alpha = (float)atof(argv[5]);
+		min_alpha = (float)atof(argv[6]);
+		if (argc == 8)
+			dst_doc_vecs_file_name = argv[7];
+	}
+
+	printf("vec_dim: %d\nnum_rounds: %d\nnum_threads: %d\nnum_neg_samples: %d\nstarting_alpha: %f\nmin_alpha: %f\n",
+		doc_vec_dim, num_rounds, num_threads, num_negative_samples, starting_alpha, min_alpha);
+
+	JointTrainer jt(entity_net_file_name, doc_entity_net_file_name, doc_words_file_name);
+	//jt.JointTrainingOMLThreaded(doc_vec_dim, num_rounds, num_threads, num_negative_samples, 
+	//	starting_alpha, ws_rate, min_alpha, dst_dedw_vecs_file_name, dst_mixed_vecs_file_name, dst_word_vecs_file_name,
+	//	dst_entity_vecs_file_name);
+	jt.TrainCMThreaded(doc_vec_dim, num_rounds, num_threads, num_negative_samples,
+		starting_alpha, min_alpha, dst_doc_vecs_file_name);
+}
+
+void EATrain(int argc, char **argv)
+{
+	//const char *entity_net_file_name = "/home/dhl/data/dc/el/entity_net_adj_list.bin";
+	//const char *doc_entity_net_file_name = "/home/dhl/data/dc/el/doc_entities.bin";
+	//const char *doc_words_file_name = "/home/dhl/data/dc/el/wiki_bow.bin";
+	//const char *dst_doc_vecs_file_name = "/home/dhl/data/dc/el/vecs/wiki_vecs.bin";
+	//const char *dst_word_vec_file_name = "/home/dhl/data/dc/el/vecs/word_vecs.bin";
+	//const char *dst_entityvec_file_name = "/home/dhl/data/dc/el/vecs/entity_vecs.bin";
+
+	//const char *entity_net_file_name = "/home/dhl/data/dc/20ng_bydate/entity_net_adj_list.bin";
+	//const char *doc_entity_net_file_name = "/home/dhl/data/dc/20ng_bydate/doc_entities_short.bin";
+	//const char *doc_words_file_name = "/home/dhl/data/dc/20ng_bydate/all_docs_dw_net_short.bin";
+	//const char *dst_doc_vecs_file_name = "/home/dhl/data/dc/20ng_bydate/vecs/dedw_vecs.bin";
+	//const char *dst_word_vec_file_name = "/home/dhl/data/dc/20ng_bydate/vecs/word_vecs.bin";
+	//const char *dst_entityvec_file_name = "/home/dhl/data/dc/20ng_bydate/vecs/entity_vecs.bin";
+
+	//const char *entity_net_file_name = "e:/dc/el/entity_net_adj_list.bin";
+	//const char *doc_entity_net_file_name = "e:/dc/el/doc_entities.bin";
+	//const char *doc_words_file_name = "e:/dc/el/wiki_bow.bin";
+	//const char *dst_doc_vecs_file_name = "e:/dc/el/vecs/wiki_vecs.bin";
+
+	const char *entity_net_file_name = "e:/dc/20ng_bydate/entity_net_adj_list.bin";
+	const char *doc_entity_net_file_name = "e:/dc/20ng_bydate/doc_entities_short.bin";
+	const char *doc_words_file_name = "e:/dc/20ng_bydate/all_docs_dw_net_short.bin";
+	const char *dst_doc_vecs_file_name = "e:/dc/20ng_bydate/vecs/dedw_vecs_0.bin";
+	const char *dst_word_vec_file_name = "e:/dc/20ng_bydate/vecs/word_vecs.bin";
+	const char *dst_entityvec_file_name = "e:/dc/20ng_bydate/vecs/entity_vecs.bin";
+
+	int doc_vec_dim = 50;
+	int num_rounds = 10;
+	int num_threads = 4;
+	int num_negative_samples = 5;
+	float starting_alpha = 0.06f;
+	float min_alpha = 0.0001f;
+
+	if (argc >= 7)
+	{
+		doc_vec_dim = atoi(argv[1]);
+		num_rounds = atoi(argv[2]);
+		num_threads = atoi(argv[3]);
+		num_negative_samples = atoi(argv[4]);
+		starting_alpha = (float)atof(argv[5]);
+		min_alpha = (float)atof(argv[6]);
+		if (argc == 8)
+			dst_doc_vecs_file_name = argv[7];
+	}
+
+	printf("vec_dim: %d\nnum_rounds: %d\nnum_threads: %d\nnum_neg_samples: %d\nstarting_alpha: %f\nmin_alpha: %f\n",
+		doc_vec_dim, num_rounds, num_threads, num_negative_samples, starting_alpha, min_alpha);
+
+	EADocVecTrainer eatrain;
+	eatrain.Init(entity_net_file_name, doc_entity_net_file_name, doc_words_file_name);
+	eatrain.AllJointThreaded(doc_vec_dim, num_rounds, num_threads, num_negative_samples,
+		starting_alpha, min_alpha, dst_doc_vecs_file_name, dst_word_vec_file_name,
+		dst_entityvec_file_name);
+}
+
 void Test()
 {
-	std::default_random_engine generator;
-	std::uniform_int_distribution<int> distribution(0, 6);
-	for (int i = 0; i < 100; ++i)
-	{
-		printf("%d ", distribution(generator));
-	}
+	//const char *doc_words_file_name = "e:/dc/20ng_bydate/all_docs_dw_net_short.bin";
+	////const char *doc_words_file_name = "/home/dhl/data/dc/20ng_bydate/all_docs_dw_net_short.bin";
+	//NetEdgeSampler sampler(doc_words_file_name);
+	//int lidx, ridx;
+	std::default_random_engine generator(43);
+	//int *cnts = new int[sampler.num_vertex_right()];
+	//for (int i = 0; i < sampler.num_vertex_right(); ++i)
+	//	cnts[i] = 0;
+	//for (int i = 0; i < sampler.sum_weights(); ++i)
+	//{
+	//	sampler.SampleEdge(lidx, ridx, generator);
+	//	//printf("%d %d\n", lidx, ridx);
+	//	if (lidx == 0)
+	//		++cnts[ridx];
+	//}
+	//for (int i = 0; i < sampler.num_vertex_right(); ++i)
+	//{
+	//	if (cnts[i] > 0)
+	//		printf("%d %d\n", i, cnts[i]);
+	//}
+	//delete[] cnts;
+
+
+	MultinomialSampler sampler;
+	const int len = 3;
+	int weights[] = { 3, 1, 2 };
+	int cnts[len];
+	for (int i = 0; i < len; ++i)
+		cnts[i] = 0;
+	sampler.Init(weights, 3);
+	for (int i = 0; i < 10000; ++i)
+		++cnts[sampler.Sample(generator)];
+	for (int i = 0; i < len; ++i)
+		printf("%d %d\n", i, cnts[i]);
+	//delete[] weights;
 }
 
 int main(int argc, char **argv)
 {
 	time_t t = time(0);
 
+	//Test();
 	//TrainEntityVectors();
 	//TrainEntitySetVectors();
 	//TrainEntitySetVectorsM();
 	//TrainParagraphVectors();
 	//JointTrainingNYT();
 	//JointTraining20NG();
-	JointTrainingOML20NG(argc, argv);
-	//Test();
+	//JointTrainingOML20NG(argc, argv);
+	//JointTrainingCM20NG(argc, argv);
+	EATrain(argc, argv);
 
 	time_t et = time(0) - t;
 	printf("\n%lld s. %lld m. %lld h.\n", et, et / 60, et / 3600);
