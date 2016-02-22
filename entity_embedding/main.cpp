@@ -12,23 +12,22 @@
 #include "joint_trainer.h"
 #include "math_utils.h"
 #include "net_edge_sampler.h"
-#include "paragraph_vector.h"
 #include "eadocvectrainer.h"
 
-void TrainParagraphVectors()
+void TrainDocWordVectors()
 {
 	const char *dw_net_file_name = "e:/dc/20ng_bydate/all_docs_dw_net.bin";
 
-	//const char *doc_word_indices_file_name = "e:/dc/20ng_data/doc_word_indices.txt";
-	//const char *dict_file_name = "e:/dc/20ng_data/doc_word_indices_dict.txt";
-
-	const char *dst_vec_file_name = "e:/dc/20ng_bydate/vecs/doc_vec_cpp_100.bin";
-	const char *dst_word_vec_file_name = "e:/dc/20ng_bydate/vecs/word_vecs_cpp_100.bin";
-	ParagraphVector pv(dw_net_file_name, 0.02f, 5);
-	int vec_dim = 200;
+	int vec_dim = 50;
 	int num_threads = 4;
-	int num_rounds = 15;
-	pv.Train(vec_dim, num_threads, num_rounds, dst_vec_file_name, dst_word_vec_file_name);
+	int num_rounds = 10;
+	int num_negative_samples = 5;
+	float starting_alpha = 0.06f;
+
+	const char *doc_words_file_name = "e:/dc/20ng_bydate/all_docs_dw_net_short.bin";
+	const char *dst_vec_file_name = "e:/dc/20ng_bydate/vecs/doc_vec_cpp_ea.bin";
+	EADocVecTrainer trainer(num_rounds, num_threads, num_negative_samples, starting_alpha);
+	trainer.TrainDocWordNetThreaded(doc_words_file_name, vec_dim, dst_vec_file_name);
 }
 
 void TrainEntityVectors()
@@ -271,10 +270,9 @@ void EATrain(int argc, char **argv)
 	printf("vec_dim: %d\nnum_rounds: %d\nnum_threads: %d\nnum_neg_samples: %d\nstarting_alpha: %f\nmin_alpha: %f\n",
 		doc_vec_dim, num_rounds, num_threads, num_negative_samples, starting_alpha, min_alpha);
 
-	EADocVecTrainer eatrain;
-	eatrain.Init(entity_net_file_name, doc_entity_net_file_name, doc_words_file_name);
-	eatrain.AllJointThreaded(doc_vec_dim, num_rounds, num_threads, num_negative_samples,
-		starting_alpha, min_alpha, dst_doc_vecs_file_name, dst_word_vec_file_name,
+	EADocVecTrainer eatrain(num_rounds, num_threads, num_negative_samples, starting_alpha, min_alpha);
+	eatrain.AllJointThreaded(entity_net_file_name, doc_entity_net_file_name, doc_words_file_name,
+		doc_vec_dim, dst_doc_vecs_file_name, dst_word_vec_file_name,
 		dst_entityvec_file_name);
 }
 
@@ -325,7 +323,7 @@ int main(int argc, char **argv)
 	//TrainEntityVectors();
 	//TrainEntitySetVectors();
 	//TrainEntitySetVectorsM();
-	//TrainParagraphVectors();
+	//TrainDocWordVectors();
 	//JointTrainingNYT();
 	//JointTraining20NG();
 	//JointTrainingOML20NG(argc, argv);
