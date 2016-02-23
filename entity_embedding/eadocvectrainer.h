@@ -13,11 +13,15 @@ public:
 		float min_alpha = 0.0001f);
 
 	void AllJointThreaded(const char *ee_net_file_name, const char *doc_entity_net_file_name,
-		const char *doc_words_file_name, int vec_dim, const char *dst_dedw_vec_file_name,
-		const char *dst_word_vecs_file_name, const char *dst_entity_vecs_file_name);
+		const char *doc_words_file_name, const char *entity_cnts_file, const char *word_cnts_file,
+		int vec_dim, const char *dst_dedw_vec_file_name, const char *dst_word_vecs_file_name, 
+		const char *dst_entity_vecs_file_name);
 
-	void TrainDocWordNetThreaded(const char *doc_words_file_name, int vec_dim,
+	void TrainDocWord(const char *doc_words_file_name, const char *word_cnts_file, int vec_dim,
 		const char *dst_doc_vecs_file_name, const char *dst_word_vecs_file_name = 0);
+
+	void TrainDocWordFixedWordVecs(const char *doc_words_file_name, const char *word_cnts_file, 
+		const char *word_vecs_file_name, int vec_dim, const char *dst_doc_vecs_file_name);
 
 private:
 	void initDocWordNet(const char *doc_words_file_name)
@@ -46,7 +50,9 @@ private:
 	void allJoint(int seed, long long num_samples_per_round, std::discrete_distribution<int> &net_sample_dist,
 		NegativeSamplingTrainer &entity_ns_trainer, NegativeSamplingTrainer &word_ns_trainer);
 
-	void trainDocWordNet(int seed, long long num_samples_per_round, NegativeSamplingTrainer &word_ns_trainer);
+	void trainDocWordMT(const char *word_cnts_file, bool update_word_vecs, const char *dst_doc_vecs_file_name);
+	void trainDocWordNet(int seed, long long num_samples_per_round, bool update_word_vecs, 
+		NegativeSamplingTrainer &word_ns_trainer);
 
 private:
 	int num_rounds_ = 10;

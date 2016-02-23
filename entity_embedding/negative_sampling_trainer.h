@@ -25,10 +25,17 @@ public:
 public:
 	// use objs0 to predict objs1
 	// e.g. objs0: documents, objs1: words
-	NegativeSamplingTrainer(ExpTable *exp_table, int num_objs1, 
-		int num_negative_samples, std::discrete_distribution<int> *negative_sample_dist);
+	//NegativeSamplingTrainer(ExpTable *exp_table, int num_negative_samples, int num_objs1,
+	//	std::discrete_distribution<int> *negative_sample_dist);
+	NegativeSamplingTrainer(ExpTable *exp_table, int num_negative_samples, int num_objs1,
+		int *obj_cnts);
+
+	NegativeSamplingTrainer(ExpTable *exp_table, int num_negative_samples,
+		const char *freq_file);
+
 	//NegativeSamplingTrainer(ExpTable *exp_table, int vec_dim, int num_objs, int num_negative_samples,
 	//	std::discrete_distribution<int> *obj_sample_dist);
+
 	~NegativeSamplingTrainer();
 
 	// obj0 -> obj1
@@ -74,6 +81,8 @@ private:
 		float alpha, float *tmp_neu1e, float *tmp_cme, std::default_random_engine &generator,
 		bool update0, bool update1, bool update_cm_params);
 
+	void initNegativeSamplingDist(int num_objs, int *obj_cnts);
+
 	float calcCMEnergy(int vec_dim, float *vec0, float *vec1, float *cm_params)
 	{
 		float result = 0;
@@ -96,7 +105,6 @@ private:
 		return result;
 	}
 
-
 private:
 	ExpTable *exp_table_;
 
@@ -104,7 +112,7 @@ private:
 	int num_objs1_ = 0;
 
 	int num_negative_samples_ = 0;
-	std::discrete_distribution<int> *negative_sample_dist_;
+	std::discrete_distribution<int> negative_sample_dist_;
 };
 
 #endif

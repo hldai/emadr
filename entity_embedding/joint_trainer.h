@@ -72,7 +72,9 @@ private:
 	int num_entities_ = 0;
 
 	//std::discrete_distribution<int> ee_edge_sample_dist_;
-	std::discrete_distribution<int> entity_sample_dist_;
+
+	//std::discrete_distribution<int> entity_sample_dist_;
+	int *entity_cnts_;
 
 	EdgeNet entity_doc_net_;
 	int num_docs_ = 0;
@@ -91,7 +93,8 @@ private:
 	float **de_vecs_ = 0;
 
 	float **word_vecs_ = 0;
-	std::discrete_distribution<int> word_sample_dist_;
+	//std::discrete_distribution<int> word_sample_dist_;
+	int *word_cnts_;
 
 	int entity_vec_dim_ = 0;
 	int word_vec_dim_ = 0;

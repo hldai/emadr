@@ -59,11 +59,26 @@ float *NegativeSamplingTrainer::GetDefNegativeSamplingWeights(int *obj_cnts, int
 	return weights;
 }
 
-NegativeSamplingTrainer::NegativeSamplingTrainer(ExpTable *exp_table, int num_objs1,
-	int num_negative_samples, std::discrete_distribution<int> *negative_sample_dist) : exp_table_(exp_table),
-	num_objs1_(num_objs1), num_negative_samples_(num_negative_samples),
-	negative_sample_dist_(negative_sample_dist)
+NegativeSamplingTrainer::NegativeSamplingTrainer(ExpTable *exp_table, int num_objs1, int num_negative_samples,
+	int *obj_cnts) : exp_table_(exp_table),
+	num_objs1_(num_objs1), num_negative_samples_(num_negative_samples)
+	//negative_sample_dist_(negative_sample_dist)
 {
+	initNegativeSamplingDist(num_objs1, obj_cnts);
+}
+
+NegativeSamplingTrainer::NegativeSamplingTrainer(ExpTable *exp_table, int num_negative_samples,
+	const char *freq_file) : exp_table_(exp_table), num_negative_samples_(num_negative_samples)
+{
+	FILE *fp = fopen(freq_file, "rb");
+	assert(fp != 0);
+
+	fread(&num_objs1_, 4, 1, fp);
+	int *cnts = new int[num_objs1_];
+	fread(cnts, 4, num_objs1_, fp);
+	fclose(fp);
+
+	initNegativeSamplingDist(num_objs1_, cnts);
 }
 
 NegativeSamplingTrainer::~NegativeSamplingTrainer()
@@ -83,7 +98,7 @@ void NegativeSamplingTrainer::TrainEdge(int vec_dim, float *vec0, int obj1, floa
 	{
 		if (i != 0)
 		{
-			target = (*negative_sample_dist_)(generator);
+			target = negative_sample_dist_(generator);
 			if (target == obj1) continue;
 
 			label = 0;
@@ -179,7 +194,7 @@ void NegativeSamplingTrainer::TrainEdgeMatrix(int dim0, int dim1, float *vec0, i
 	{
 		if (i != 0)
 		{
-			target = (*negative_sample_dist_)(generator);
+			target = negative_sample_dist_(generator);
 			if (target == obj1) continue;
 
 			label = 0;
@@ -301,7 +316,7 @@ void NegativeSamplingTrainer::trainEdgeCM(int vec_dim, float *vec0, int obj1, fl
 	{
 		if (i != 0)
 		{
-			target = (*negative_sample_dist_)(generator);
+			target = negative_sample_dist_(generator);
 			if (target == obj1) continue;
 
 			label = 0;
@@ -366,7 +381,7 @@ void NegativeSamplingTrainer::trainEdgeCMComplement(int vec_dim, float *vec0, in
 	{
 		if (i != 0)
 		{
-			target = (*negative_sample_dist_)(generator);
+			target = negative_sample_dist_(generator);
 			if (target == obj1) continue;
 
 			label = 0;
@@ -411,4 +426,11 @@ void NegativeSamplingTrainer::trainEdgeCMComplement(int vec_dim, float *vec0, in
 	if (update_cm_params)
 		for (int i = 0; i < vec_dim; ++i)
 			cm_params[i] += tmp_cme[i] - lambda * (cm_params[i] - 0.5f);
+}
+
+void NegativeSamplingTrainer::initNegativeSamplingDist(int num_objs, int *obj_cnts)
+{
+	float *weights = GetDefNegativeSamplingWeights(obj_cnts, num_objs);
+	negative_sample_dist_ = std::discrete_distribution<int>(weights, weights + num_objs);
+	delete[] weights;
 }

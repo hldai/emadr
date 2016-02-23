@@ -11,6 +11,8 @@ public:
 	static void LoadVectors(const char *file_name, int &num_vecs,
 		int &vec_dim, float **&vecs);
 
+	static void LoadCountsFile(const char *file_name, int &num, int *&cnts);
+
 	static void LoadNetEdgeListText(const char *file_name, Edge *&dst_edges,
 		int *&weights, int &num_edges, int &num_objs_left, int &num_objs_right);
 

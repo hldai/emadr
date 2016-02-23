@@ -13,8 +13,9 @@ EADocVecTrainer::EADocVecTrainer(int num_rounds, int num_threads, int num_negati
 }
 
 void EADocVecTrainer::AllJointThreaded(const char *ee_net_file_name, const char *doc_entity_net_file_name,
-	const char *doc_words_file_name, int vec_dim, const char *dst_dedw_vec_file_name,
-	const char *dst_word_vecs_file_name, const char *dst_entity_vecs_file_name)
+	const char *doc_words_file_name, const char *entity_cnts_file, const char *word_cnts_file, 
+	int vec_dim, const char *dst_dedw_vec_file_name, const char *dst_word_vecs_file_name,
+	const char *dst_entity_vecs_file_name)
 {
 	initDocEntityNet(doc_entity_net_file_name);
 	initDocWordNet(doc_words_file_name);
@@ -31,10 +32,10 @@ void EADocVecTrainer::AllJointThreaded(const char *ee_net_file_name, const char 
 	de_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, entity_vec_dim_);
 
 	ExpTable exp_table;
-	NegativeSamplingTrainer entity_ns_trainer(&exp_table, num_entities_,
-		num_negative_samples_, de_edge_sampler_->neg_sampling_dist());
-	NegativeSamplingTrainer word_ns_trainer(&exp_table, num_words_,
-		num_negative_samples_, dw_edge_sampler_->neg_sampling_dist());
+	NegativeSamplingTrainer entity_ns_trainer(&exp_table, num_negative_samples_,
+		entity_cnts_file);
+	NegativeSamplingTrainer word_ns_trainer(&exp_table, num_negative_samples_,
+		word_cnts_file);
 	printf("inited.\n");
 
 	int sum_ee_edge_weights = ee_edge_sampler_->sum_weights();
@@ -78,7 +79,7 @@ void EADocVecTrainer::AllJointThreaded(const char *ee_net_file_name, const char 
 	IOUtils::SaveVectors(ee_vecs0_, entity_vec_dim_, num_entities_, dst_entity_vecs_file_name);
 }
 
-void EADocVecTrainer::TrainDocWordNetThreaded(const char *doc_words_file_name, int vec_dim,
+void EADocVecTrainer::TrainDocWord(const char *doc_words_file_name, const char *word_cnts_file, int vec_dim,
 	const char *dst_doc_vecs_file_name, const char *dst_word_vecs_file_name)
 {
 	initDocWordNet(doc_words_file_name);
@@ -88,34 +89,35 @@ void EADocVecTrainer::TrainDocWordNetThreaded(const char *doc_words_file_name, i
 	printf("initing model....\n");
 	word_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_words_, word_vec_dim_);
 	dw_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, word_vec_dim_);
-
-	ExpTable exp_table;
-	NegativeSamplingTrainer word_ns_trainer(&exp_table, num_words_,
-		num_negative_samples_, dw_edge_sampler_->neg_sampling_dist());
 	printf("inited.\n");
 
-	int sum_dw_edge_weights = dw_edge_sampler_->sum_weights();
-	long long num_samples_per_round = sum_dw_edge_weights / 2;
+	trainDocWordMT(word_cnts_file, true, dst_doc_vecs_file_name);
 
-	printf("%lld samples per round\n", num_samples_per_round);
-
-	int seeds[] = { 317, 7, 31, 297, 1238, 23487, 238593, 92384, 129380, 23848 };
-	std::thread *threads = new std::thread[num_threads_];
-	for (int i = 0; i < num_threads_; ++i)
-	{
-		int cur_seed = seeds[i];
-		threads[i] = std::thread([&, cur_seed, num_samples_per_round]
-		{
-			trainDocWordNet(cur_seed, num_samples_per_round, word_ns_trainer);
-		});
-	}
-	for (int i = 0; i < num_threads_; ++i)
-		threads[i].join();
-	printf("\n");
-
-	IOUtils::SaveVectors(dw_vecs_, word_vec_dim_, num_docs_, dst_doc_vecs_file_name);
 	if (dst_word_vecs_file_name != 0)
 		IOUtils::SaveVectors(word_vecs_, word_vec_dim_, num_words_, dst_word_vecs_file_name);
+}
+
+void EADocVecTrainer::TrainDocWordFixedWordVecs(const char *doc_words_file_name, const char *word_cnts_file,
+	const char *word_vecs_file_name, int vec_dim, const char *dst_doc_vecs_file_name)
+{
+	initDocWordNet(doc_words_file_name);
+
+	word_vec_dim_ = vec_dim;
+
+	printf("initing model....\n");
+	int tmp_num = 0, tmp_dim = 0;
+	IOUtils::LoadVectors(word_vecs_file_name, tmp_num, tmp_dim, word_vecs_);
+	if (tmp_num != num_words_ || tmp_dim != vec_dim)
+	{
+		printf("num words: %d %d\n", num_words_, tmp_num);
+		printf("vec dim: %d %d\n", vec_dim, tmp_dim);
+		return;
+	}
+	//dw_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, word_vec_dim_);
+	dw_vecs_ = NegativeSamplingTrainer::GetInitedVecs1(num_docs_, word_vec_dim_);
+	printf("inited.\n");
+
+	trainDocWordMT(word_cnts_file, false, dst_doc_vecs_file_name);
 }
 
 void EADocVecTrainer::saveConcatnatedVectors(float **vecs0, float **vecs1, int num_vecs, int vec_dim,
@@ -189,7 +191,35 @@ void EADocVecTrainer::allJoint(int seed, long long num_samples_per_round, std::d
 	delete[] tmp_neu1e;
 }
 
-void EADocVecTrainer::trainDocWordNet(int seed, long long num_samples_per_round, NegativeSamplingTrainer &word_ns_trainer)
+void EADocVecTrainer::trainDocWordMT(const char *word_cnts_file, bool update_word_vecs, const char *dst_doc_vecs_file_name)
+{
+	ExpTable exp_table;
+	NegativeSamplingTrainer word_ns_trainer(&exp_table, num_negative_samples_, word_cnts_file);
+
+	int sum_dw_edge_weights = dw_edge_sampler_->sum_weights();
+	long long num_samples_per_round = sum_dw_edge_weights / 2;
+
+	printf("%lld samples per round\n", num_samples_per_round);
+
+	int seeds[] = { 317, 7, 31, 297, 1238, 23487, 238593, 92384, 129380, 23848 };
+	std::thread *threads = new std::thread[num_threads_];
+	for (int i = 0; i < num_threads_; ++i)
+	{
+		int cur_seed = seeds[i];
+		threads[i] = std::thread([&, cur_seed, num_samples_per_round]
+		{
+			trainDocWordNet(cur_seed, num_samples_per_round, update_word_vecs, word_ns_trainer);
+		});
+	}
+	for (int i = 0; i < num_threads_; ++i)
+		threads[i].join();
+	printf("\n");
+
+	IOUtils::SaveVectors(dw_vecs_, word_vec_dim_, num_docs_, dst_doc_vecs_file_name);
+}
+
+void EADocVecTrainer::trainDocWordNet(int seed, long long num_samples_per_round, bool update_word_vecs, 
+	NegativeSamplingTrainer &word_ns_trainer)
 {
 	//printf("seed %d samples_per_round %d. training...\n", seed, num_samples_per_round);
 	std::default_random_engine generator(seed);
@@ -215,7 +245,7 @@ void EADocVecTrainer::trainDocWordNet(int seed, long long num_samples_per_round,
 
 			dw_edge_sampler_->SampleEdge(va, vb, generator, rand_gen);
 			word_ns_trainer.TrainEdge(word_vec_dim_, dw_vecs_[va], vb, word_vecs_,
-				alpha, tmp_neu1e, generator);
+				alpha, tmp_neu1e, generator, true, update_word_vecs);
 		}
 	}
 

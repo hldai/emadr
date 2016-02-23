@@ -37,6 +37,15 @@ void IOUtils::LoadVectors(const char *file_name, int &num_vecs, int &vec_dim,
 	fclose(fp);
 }
 
+void IOUtils::LoadCountsFile(const char *file_name, int &num, int *&cnts)
+{
+	FILE *fp = fopen(file_name, "rb");
+	fread(&num, 4, 1, fp);
+	cnts = new int[num];
+	fread(cnts, 4, num, fp);
+	fclose(fp);
+}
+
 void IOUtils::LoadNetEdgeListText(const char *file_name, Edge *&dst_edges, int *&weights, 
 	int &num_edges, int &num_objs_left, int &num_objs_right)
 {

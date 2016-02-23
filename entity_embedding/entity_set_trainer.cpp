@@ -62,14 +62,11 @@ void EntitySetTrainer::TrainM(const char *doc_entity_list_file_name, int dst_dim
 		num_entity_vecs, kNumNegSamples);
 
 	ExpTable exp_table;
-	double *entity_sample_weights = getEntitySampleWeights();
-	entity_sample_dist_ = std::discrete_distribution<int>(entity_sample_weights,
-		entity_sample_weights + vec_dict_.num_vectors());
 
 	std::default_random_engine generator(13787);
 
-	NegativeSamplingTrainer ns_trainer(&exp_table, num_entity_vecs, kNumNegSamples,
-		&entity_sample_dist_);
+	NegativeSamplingTrainer ns_trainer(&exp_table, kNumNegSamples, num_entity_vecs,
+		entity_freqs_);
 
 	float **doc_vecs = new float*[num_docs_], **prec_vecs1 = new float*[num_entity_vecs];
 	for (int i = 0; i < num_docs_; ++i)
@@ -120,7 +117,6 @@ void EntitySetTrainer::TrainM(const char *doc_entity_list_file_name, int dst_dim
 	saveVectors(doc_vecs, num_docs_, dst_dim, dst_doc_vec_file_name);
 
 	delete[] doc_samples;
-	delete[] entity_sample_weights;
 	delete[] matrix;
 	for (int i = 0; i < num_docs_; ++i)
 		delete[] doc_vecs[i];
@@ -137,11 +133,8 @@ void EntitySetTrainer::trainDocVectorsWithNegativeSampling(const char *dst_file_
 
 	int vec_len = vec_dict_.vec_len();
 	ExpTable exp_table;
-	double *entity_sample_weights = getEntitySampleWeights();
-	entity_sample_dist_ = std::discrete_distribution<int>(entity_sample_weights,
-		entity_sample_weights + vec_dict_.num_vectors());
-	NegativeSamplingTrainer ns_trainer(&exp_table, vec_dict_.num_vectors(), kNumNegSamples,
-		&entity_sample_dist_);
+	NegativeSamplingTrainer ns_trainer(&exp_table, kNumNegSamples, vec_dict_.num_vectors(),
+		entity_freqs_);
 
 	std::default_random_engine generator;
 
@@ -184,7 +177,6 @@ void EntitySetTrainer::trainDocVectorsWithNegativeSampling(const char *dst_file_
 	delete[] tmp_neu1e;
 	delete[] doc_vec;
 	delete[] no_entity_doc_vec;
-	delete[] entity_sample_weights;
 }
 
 void EntitySetTrainer::trainDocVectorsThreaded(int *doc_indices, int num_docs, float **vecs1, NegativeSamplingTrainer &ns_trainer, float **dst_vecs,
@@ -475,15 +467,15 @@ void EntitySetTrainer::sampleDocs(int num_docs, int *dst_indices, std::default_r
 	}
 }
 
-double *EntitySetTrainer::getEntitySampleWeights()
-{
-	const double power = 0.75;
-	const int &num_entities = vec_dict_.num_vectors();
-	double *weights = new double[num_entities];
-	for (int i = 0; i < num_entities; ++i)
-		weights[i] = pow(entity_freqs_[i], power);
-	return weights;
-}
+//double *EntitySetTrainer::getEntitySampleWeights()
+//{
+//	const double power = 0.75;
+//	const int &num_entities = vec_dict_.num_vectors();
+//	double *weights = new double[num_entities];
+//	for (int i = 0; i < num_entities; ++i)
+//		weights[i] = pow(entity_freqs_[i], power);
+//	return weights;
+//}
 
 void EntitySetTrainer::testDocVec(int *entities, int num_entities, float *doc_vec)
 {

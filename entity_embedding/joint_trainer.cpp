@@ -37,11 +37,7 @@ JointTrainer::JointTrainer(const char *ee_net_file_name, const char *doc_entity_
 	num_entities_ = doc_entity_net.num_vertices_right;
 
 	//int *entity_cnts = getEntitySampleWeights(doc_entity_net);
-	int *entity_cnts = doc_entity_net.CountRightVertices();
-	float *entity_sample_weights = NegativeSamplingTrainer::GetDefNegativeSamplingWeights(entity_cnts, num_entities_);
-	entity_sample_dist_ = std::discrete_distribution<int>(entity_sample_weights, entity_sample_weights + num_entities_);
-	delete[] entity_cnts;
-	delete[] entity_sample_weights;
+	entity_cnts_ = doc_entity_net.CountRightVertices();
 
 	dw_edge_sampler_ = new NetEdgeSampler(doc_words_file_name);
 	num_words_ = dw_edge_sampler_->num_vertex_right();
@@ -96,10 +92,10 @@ void JointTrainer::TrainCMThreaded(int vec_dim, int num_rounds, int num_threads,
 	doc_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, doc_vec_dim_);
 
 	ExpTable exp_table;
-	NegativeSamplingTrainer entity_ns_trainer(&exp_table, num_entities_,
-		num_negative_samples, &entity_sample_dist_);
-	NegativeSamplingTrainer word_ns_trainer(&exp_table, num_words_,
-		num_negative_samples, &word_sample_dist_);
+	NegativeSamplingTrainer entity_ns_trainer(&exp_table, num_negative_samples,
+		num_entities_, entity_cnts_);
+	NegativeSamplingTrainer word_ns_trainer(&exp_table, num_negative_samples,
+		num_words_, &word_sample_dist_);
 	printf("inited.\n");
 
 	int sum_ee_edge_weights = MathUtils::Sum(entity_net_.weights, entity_net_.num_edges);
@@ -301,15 +297,15 @@ void JointTrainer::JointTrainingOMLThreaded(int vec_dim, int num_rounds, int num
 	doc_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, doc_vec_dim_);
 
 	ExpTable exp_table;
-	NegativeSamplingTrainer entity_ns_trainer(&exp_table, num_entities_,
-		num_negative_samples, &entity_sample_dist_);
+	NegativeSamplingTrainer entity_ns_trainer(&exp_table,
+		num_negative_samples, num_entities_, &entity_sample_dist_);
 	//NegativeSamplingTrainer word_ns_trainer(&exp_table, num_words_,
 	//	num_negative_samples, &word_sample_dist_);
-	NegativeSamplingTrainer word_ns_trainer(&exp_table, num_words_,
-		num_negative_samples, dw_edge_sampler_->neg_sampling_dist());
+	NegativeSamplingTrainer word_ns_trainer(&exp_table,
+		num_negative_samples, num_words_, dw_edge_sampler_->neg_sampling_dist());
 	// for both dw and de
-	NegativeSamplingTrainer doc_ns_trainer(&exp_table, num_docs_,
-		num_negative_samples, &doc_sample_dist_);
+	NegativeSamplingTrainer doc_ns_trainer(&exp_table,
+		num_negative_samples, num_docs_, &doc_sample_dist_);
 	printf("inited.\n");
 
 	int sum_ee_edge_weights = MathUtils::Sum(entity_net_.weights, entity_net_.num_edges);
@@ -467,10 +463,10 @@ void JointTrainer::JointTrainingThreaded(int entity_vec_dim, int word_vec_dim, i
 	doc_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, doc_vec_dim_);
 	word_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_words_, word_vec_dim_);
 	ExpTable exp_table;
-	NegativeSamplingTrainer entity_ns_trainer(&exp_table, num_entities_, 
-		num_negative_samples, &entity_sample_dist_);
-	NegativeSamplingTrainer word_ns_trainer(&exp_table, num_words_,
-		num_negative_samples, &word_sample_dist_);
+	NegativeSamplingTrainer entity_ns_trainer(&exp_table, 
+		num_negative_samples, num_entities_, &entity_sample_dist_);
+	NegativeSamplingTrainer word_ns_trainer(&exp_table,
+		num_negative_samples, num_words_, &word_sample_dist_);
 	printf("inited.\n");
 
 	int sum_ee_edge_weights = MathUtils::Sum(entity_net_.weights, entity_net_.num_edges);
@@ -580,7 +576,7 @@ void JointTrainer::TrainEntityNetThreaded(int vec_dim, int num_rounds, int num_t
 	ee_vecs0_ = NegativeSamplingTrainer::GetInitedVecs0(num_entities_, entity_vec_dim_);
 	ee_vecs1_ = NegativeSamplingTrainer::GetInitedVecs1(num_entities_, entity_vec_dim_);
 	ExpTable exp_table;
-	NegativeSamplingTrainer ns_trainer(&exp_table, num_entities_, num_negative_samples, &entity_sample_dist_);
+	NegativeSamplingTrainer ns_trainer(&exp_table, num_negative_samples, num_entities_, &entity_sample_dist_);
 	printf("inited.\n");
 
 	int sum_ee_edge_weights = MathUtils::Sum(entity_net_.weights, entity_net_.num_edges);
@@ -648,7 +644,7 @@ void JointTrainer::TrainDocEntityNetThreaded(const char *entity_vec_file_name, i
 	printf("initing model....\n");
 	doc_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, entity_vec_dim_);
 	ExpTable exp_table;
-	NegativeSamplingTrainer ns_trainer(&exp_table, num_entities_, num_negative_samples, &entity_sample_dist_);
+	NegativeSamplingTrainer ns_trainer(&exp_table, num_negative_samples, num_entities_, &entity_sample_dist_);
 	printf("inited.\n");
 
 	int sum_ed_edge_weights = MathUtils::Sum(entity_doc_net_.weights, entity_doc_net_.num_edges);

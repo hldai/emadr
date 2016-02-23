@@ -47,7 +47,7 @@ private:
 
 	void sampleDocs(int num_docs, int *dst_indices, std::default_random_engine &generator);
 
-	double *getEntitySampleWeights();
+	//double *getEntitySampleWeights();
 	void testDocVec(int *entities, int num_entities, float *doc_vec);
 	void listPositiveEntityScores(int doc_idx, float *doc_vec, float **entity_vecs);
 
