@@ -5,6 +5,7 @@
 
 #include "net_edge_sampler.h"
 #include "negative_sampling_trainer.h"
+#include "negsamplingdoubleobj.h"
 
 class EADocVecTrainer
 {
@@ -15,6 +16,11 @@ public:
 	void AllJointThreaded(const char *ee_net_file_name, const char *doc_entity_net_file_name,
 		const char *doc_words_file_name, const char *entity_cnts_file, const char *word_cnts_file,
 		int vec_dim, const char *dst_dedw_vec_file_name, const char *dst_word_vecs_file_name, 
+		const char *dst_entity_vecs_file_name);
+
+	void TrainEnergyMT(const char *ee_net_file_name, const char *doc_entity_net_file_name,
+		const char *doc_words_file_name, const char *entity_cnts_file, const char *word_cnts_file,
+		int vec_dim, const char *dst_dedw_vec_file_name, const char *dst_word_vecs_file_name,
 		const char *dst_entity_vecs_file_name);
 
 	void TrainDocWord(const char *doc_words_file_name, const char *word_cnts_file, int vec_dim,
@@ -50,6 +56,9 @@ private:
 	void allJoint(int seed, long long num_samples_per_round, std::discrete_distribution<int> &net_sample_dist,
 		NegativeSamplingTrainer &entity_ns_trainer, NegativeSamplingTrainer &word_ns_trainer);
 
+	void trainEnergy(int seed, long long num_samples_per_round, std::discrete_distribution<int> &net_sample_dist,
+		NegativeSamplingTrainer &entity_ns_trainer, NegSamplingDoubleObj &ew_ns_trainer);
+
 	void trainDocWordMT(const char *word_cnts_file, bool update_word_vecs, const char *dst_doc_vecs_file_name);
 	void trainDocWordNet(int seed, long long num_samples_per_round, bool update_word_vecs, 
 		NegativeSamplingTrainer &word_ns_trainer);
@@ -75,6 +84,8 @@ private:
 	float **ee_vecs1_ = 0;
 	float **dw_vecs_ = 0;
 	float **de_vecs_ = 0;
+
+	float **doc_vecs_ = 0;
 
 	int entity_vec_dim_ = 0;
 	int word_vec_dim_ = 0;

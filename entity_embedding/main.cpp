@@ -7,7 +7,6 @@
 #include <iostream>
 
 #include "entity_set_trainer.h"
-#include "entity_vec_trainer.h"
 #include "io_utils.h"
 //#include "joint_trainer.h"
 #include "math_utils.h"
@@ -16,8 +15,6 @@
 
 void TrainDocWordVectors()
 {
-	//const char *dw_net_file_name = "e:/dc/20ng_bydate/all_docs_dw_net.bin";
-
 	int vec_dim = 50;
 	int num_threads = 4;
 	int num_rounds = 10;
@@ -29,10 +26,15 @@ void TrainDocWordVectors()
 	//const char *word_vecs_file_name = "e:/dc/20ng_bydate/vecs/word_vecs.bin";
 	//const char *dst_vec_file_name = "e:/dc/20ng_bydate/vecs/doc_vec_cpp_ea.bin";
 
-	const char *doc_words_file_name = "e:/dc/el/tac_2014_train_docs_bow.bin";
-	const char *word_cnts_file = "e:/dc/el/word_cnts.bin";
-	const char *word_vecs_file_name = "e:/dc/el/vecs/word_vecs.bin";
-	const char *dst_vec_file_name = "e:/dc/el/vecs/tac_2014_train_vecs.bin";
+	//const char *doc_words_file_name = "e:/dc/el/tac_2014_train_docs_bow.bin";
+	//const char *word_cnts_file = "e:/dc/el/word_cnts.bin";
+	//const char *word_vecs_file_name = "e:/dc/el/vecs/word_vecs.bin";
+	//const char *dst_vec_file_name = "e:/dc/el/vecs/tac_2014_train_vecs.bin";
+
+	const char *doc_words_file_name = "e:/dc/el/tac14_entities.bin";
+	const char *word_cnts_file = "e:/dc/el/entity_cnts.bin";
+	const char *word_vecs_file_name = "e:/dc/el/vecs/entity_vecs.bin";
+	const char *dst_vec_file_name = "e:/dc/el/vecs/tac_2014_train_entity_vecs.bin";
 
 	EADocVecTrainer trainer(num_rounds, num_threads, num_negative_samples, starting_alpha);
 	trainer.TrainDocWordFixedWordVecs(doc_words_file_name, word_cnts_file, word_vecs_file_name, 
@@ -247,7 +249,7 @@ void EATrain(int argc, char **argv)
 	const char *doc_words_file_name = "e:/dc/20ng_bydate/all_docs_dw_net_short.bin";
 	const char *entity_cnts_file = "e:/dc/20ng_bydate/entity_cnts.bin";
 	const char *word_cnts_file = "e:/dc/20ng_bydate/word_cnts.bin";
-	const char *dst_doc_vecs_file_name = "e:/dc/20ng_bydate/vecs/dedw_vecs_0.bin";
+	const char *dst_doc_vecs_file_name = "e:/dc/20ng_bydate/vecs/dedw_vecs.bin";
 	const char *dst_word_vec_file_name = "e:/dc/20ng_bydate/vecs/word_vecs.bin";
 	const char *dst_entityvec_file_name = "e:/dc/20ng_bydate/vecs/entity_vecs.bin";
 
@@ -274,7 +276,10 @@ void EATrain(int argc, char **argv)
 		doc_vec_dim, num_rounds, num_threads, num_negative_samples, starting_alpha, min_alpha);
 
 	EADocVecTrainer eatrain(num_rounds, num_threads, num_negative_samples, starting_alpha, min_alpha);
-	eatrain.AllJointThreaded(entity_net_file_name, doc_entity_net_file_name, doc_words_file_name,
+	//eatrain.AllJointThreaded(entity_net_file_name, doc_entity_net_file_name, doc_words_file_name,
+	//	entity_cnts_file, word_cnts_file, doc_vec_dim, dst_doc_vecs_file_name, dst_word_vec_file_name,
+	//	dst_entityvec_file_name);
+	eatrain.TrainEnergyMT(entity_net_file_name, doc_entity_net_file_name, doc_words_file_name,
 		entity_cnts_file, word_cnts_file, doc_vec_dim, dst_doc_vecs_file_name, dst_word_vec_file_name,
 		dst_entityvec_file_name);
 }
@@ -308,6 +313,7 @@ int main(int argc, char **argv)
 	//JointTraining20NG();
 	//JointTrainingOML20NG(argc, argv);
 	//JointTrainingCM20NG(argc, argv);
+
 	//TrainDocWordVectors();
 	EATrain(argc, argv);
 

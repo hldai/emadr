@@ -3,15 +3,11 @@
 
 #include <random>
 
-#include "exp_table.h"
+#include "negsamplingbase.h"
 
-class NegativeSamplingTrainer
+class NegativeSamplingTrainer : public NegSamplingBase
 {
 public:
-	static float **GetInitedVecs0(int num_objs, int vec_dim);
-	static void InitVec0Def(float *vecs, int vec_dim);
-	static float **GetInitedVecs1(int num_objs, int vec_dim);
-
 	static float *GetInitedCMParams(int vec_dim);
 
 	// for energy with a matrix
@@ -19,8 +15,6 @@ public:
 	static void InitMatrix(float *matrix, int dim0, int dim1);
 
 	static void CloseVectors(float **vecs, int num_vecs, int vec_dim, int idx);
-
-	static float *GetDefNegativeSamplingWeights(int *obj_cnts, int num_objs);
 
 public:
 	// use objs0 to predict objs1
@@ -81,8 +75,6 @@ private:
 		float alpha, float *tmp_neu1e, float *tmp_cme, std::default_random_engine &generator,
 		bool update0, bool update1, bool update_cm_params);
 
-	void initNegativeSamplingDist(int num_objs, int *obj_cnts);
-
 	float calcCMEnergy(int vec_dim, float *vec0, float *vec1, float *cm_params)
 	{
 		float result = 0;
@@ -106,12 +98,9 @@ private:
 	}
 
 private:
-	ExpTable *exp_table_;
-
 	// use objs0 to predict objs1, e.g. objs0: documents, objs1: words
 	int num_objs1_ = 0;
 
-	int num_negative_samples_ = 0;
 	std::discrete_distribution<int> negative_sample_dist_;
 };
 

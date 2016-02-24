@@ -141,3 +141,15 @@ void NetEdgeSampler::SampleEdge(int &lidx, int &ridx, std::default_random_engine
 	++cnts_[lidx][tmp];
 	//ridx = adj_list_[lidx][rand() % num_adj_vertices_[lidx]];
 }
+
+int NetEdgeSampler::SampleRight(int lidx, RandGen &rand_gen)
+{
+	if (num_adj_vertices_[lidx] == 0)
+		return -1;
+
+	int tmp = right_vertex_samplers_[lidx].Sample(rand_gen);
+	int ridx = adj_list_[lidx][tmp];
+	++cnts_[lidx][tmp];
+
+	return ridx;
+}

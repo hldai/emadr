@@ -5,35 +5,6 @@
 
 #include "math_utils.h"
 
-float **NegativeSamplingTrainer::GetInitedVecs0(int num_objs, int vec_dim)
-{
-	float **vecs = new float*[num_objs];
-	for (int i = 0; i < num_objs; ++i)
-	{
-		vecs[i] = new float[vec_dim];
-		for (int j = 0; j < vec_dim; ++j)
-			vecs[i][j] = ((float)rand() / RAND_MAX - 0.5f) / vec_dim;
-	}
-	return vecs;
-}
-
-void NegativeSamplingTrainer::InitVec0Def(float *vecs, int vec_dim)
-{
-	for (int i = 0; i < vec_dim; ++i)
-		vecs[i] = ((float)rand() / RAND_MAX - 0.5f) / vec_dim;
-}
-
-float **NegativeSamplingTrainer::GetInitedVecs1(int num_objs, int vec_dim)
-{
-	float **vecs = new float*[num_objs];
-	for (int i = 0; i < num_objs; ++i)
-	{
-		vecs[i] = new float[vec_dim];
-		std::fill(vecs[i], vecs[i] + vec_dim, 0.0f);
-	}
-	return vecs;
-}
-
 float *NegativeSamplingTrainer::GetInitedCMParams(int vec_dim)
 {
 	float *cm_params = new float[vec_dim];
@@ -51,34 +22,17 @@ void NegativeSamplingTrainer::InitMatrix(float *matrix, int dim0, int dim1)
 		matrix[i] = distribution(generator);
 }
 
-float *NegativeSamplingTrainer::GetDefNegativeSamplingWeights(int *obj_cnts, int num_objs)
-{
-	float *weights = new float[num_objs];
-	for (int i = 0; i < num_objs; ++i)
-		weights[i] = powf(obj_cnts[i], 0.75f);
-	return weights;
-}
-
 NegativeSamplingTrainer::NegativeSamplingTrainer(ExpTable *exp_table, int num_objs1, int num_negative_samples,
-	int *obj_cnts) : exp_table_(exp_table),
-	num_objs1_(num_objs1), num_negative_samples_(num_negative_samples)
-	//negative_sample_dist_(negative_sample_dist)
+	int *obj_cnts) : NegSamplingBase(exp_table, num_negative_samples),
+	num_objs1_(num_objs1)
 {
-	initNegativeSamplingDist(num_objs1, obj_cnts);
+	initNegativeSamplingDist(num_objs1, obj_cnts, negative_sample_dist_);
 }
 
 NegativeSamplingTrainer::NegativeSamplingTrainer(ExpTable *exp_table, int num_negative_samples,
-	const char *freq_file) : exp_table_(exp_table), num_negative_samples_(num_negative_samples)
+	const char *freq_file) : NegSamplingBase(exp_table, num_negative_samples)
 {
-	FILE *fp = fopen(freq_file, "rb");
-	assert(fp != 0);
-
-	fread(&num_objs1_, 4, 1, fp);
-	int *cnts = new int[num_objs1_];
-	fread(cnts, 4, num_objs1_, fp);
-	fclose(fp);
-
-	initNegativeSamplingDist(num_objs1_, cnts);
+	loadFreqFile(freq_file, num_objs1_, negative_sample_dist_);
 }
 
 NegativeSamplingTrainer::~NegativeSamplingTrainer()
@@ -426,11 +380,4 @@ void NegativeSamplingTrainer::trainEdgeCMComplement(int vec_dim, float *vec0, in
 	if (update_cm_params)
 		for (int i = 0; i < vec_dim; ++i)
 			cm_params[i] += tmp_cme[i] - lambda * (cm_params[i] - 0.5f);
-}
-
-void NegativeSamplingTrainer::initNegativeSamplingDist(int num_objs, int *obj_cnts)
-{
-	float *weights = GetDefNegativeSamplingWeights(obj_cnts, num_objs);
-	negative_sample_dist_ = std::discrete_distribution<int>(weights, weights + num_objs);
-	delete[] weights;
 }

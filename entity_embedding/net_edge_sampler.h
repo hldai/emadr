@@ -17,6 +17,8 @@ public:
 	void SampleEdge(int &lidx, int &ridx, std::default_random_engine &generator);
 	void SampleEdge(int &lidx, int &ridx, std::default_random_engine &generator, RandGen &rand_gen);
 
+	int SampleRight(int lidx, RandGen &rand_gen);
+
 	std::discrete_distribution<int> *neg_sampling_dist()
 	{
 		return &neg_sampling_dist_;
