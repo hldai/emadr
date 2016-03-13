@@ -7,42 +7,42 @@
 #include "negative_sampling_trainer.h"
 #include "math_utils.h"
 
-NetEdgeSampler::NetEdgeSampler(AdjListNet &adj_list_net)
-{
-	int *left_weights = new int[adj_list_net.num_vertices_left];
-	int *right_weights = new int[adj_list_net.num_vertices_right];
-	std::fill(right_weights, right_weights + adj_list_net.num_vertices_right, 0);
-
-	//right_vertex_dists_ = new std::discrete_distribution<int>[adj_list_net.num_vertices_left];
-	right_vertex_samplers_ = new MultinomialSampler[adj_list_net.num_vertices_left];
-
-	for (int i = 0; i < adj_list_net.num_vertices_left; ++i)
-	{
-		//right_vertex_dists_[i] = std::discrete_distribution<int>(adj_list_net.weights[i],
-		//	adj_list_net.weights[i] + adj_list_net.num_adj_vertices[i]);
-		right_vertex_samplers_[i].Init(adj_list_net.weights[i], adj_list_net.num_adj_vertices[i]);
-
-		left_weights[i] = 0;
-		for (int j = 0; j < adj_list_net.num_adj_vertices[i]; ++j)
-		{
-			left_weights[i] += adj_list_net.weights[i][j];
-			right_weights[adj_list_net.adj_vertices[i][j]] += adj_list_net.weights[i][j];
-		}
-	}
-
-	//left_vertex_dist_ = std::discrete_distribution<int>(left_weights,
-	//	left_weights + adj_list_net.num_vertices_left);
-	//left_vertex_sampler_.Init(left_weights, adj_list_net.num_vertices_left);
-
-	float *neg_sampling_weights = NegativeSamplingTrainer::GetDefNegativeSamplingWeights(right_weights, 
-		adj_list_net.num_vertices_right);
-	neg_sampling_dist_ = std::discrete_distribution<int>(neg_sampling_weights, 
-		neg_sampling_weights + adj_list_net.num_vertices_right);
-	delete[] neg_sampling_weights;
-
-	delete[] left_weights;
-	delete[] right_weights;
-}
+//NetEdgeSampler::NetEdgeSampler(AdjListNet &adj_list_net)
+//{
+//	int *left_weights = new int[adj_list_net.num_vertices_left];
+//	int *right_weights = new int[adj_list_net.num_vertices_right];
+//	std::fill(right_weights, right_weights + adj_list_net.num_vertices_right, 0);
+//
+//	//right_vertex_dists_ = new std::discrete_distribution<int>[adj_list_net.num_vertices_left];
+//	right_vertex_samplers_ = new MultinomialSampler[adj_list_net.num_vertices_left];
+//
+//	for (int i = 0; i < adj_list_net.num_vertices_left; ++i)
+//	{
+//		//right_vertex_dists_[i] = std::discrete_distribution<int>(adj_list_net.weights[i],
+//		//	adj_list_net.weights[i] + adj_list_net.num_adj_vertices[i]);
+//		right_vertex_samplers_[i].Init(adj_list_net.weights[i], adj_list_net.num_adj_vertices[i]);
+//
+//		left_weights[i] = 0;
+//		for (int j = 0; j < adj_list_net.num_adj_vertices[i]; ++j)
+//		{
+//			left_weights[i] += adj_list_net.weights[i][j];
+//			right_weights[adj_list_net.adj_vertices[i][j]] += adj_list_net.weights[i][j];
+//		}
+//	}
+//
+//	//left_vertex_dist_ = std::discrete_distribution<int>(left_weights,
+//	//	left_weights + adj_list_net.num_vertices_left);
+//	//left_vertex_sampler_.Init(left_weights, adj_list_net.num_vertices_left);
+//
+//	float *neg_sampling_weights = NegativeSamplingTrainer::GetDefNegativeSamplingWeights(right_weights, 
+//		adj_list_net.num_vertices_right);
+//	neg_sampling_dist_ = std::discrete_distribution<int>(neg_sampling_weights, 
+//		neg_sampling_weights + adj_list_net.num_vertices_right);
+//	delete[] neg_sampling_weights;
+//
+//	delete[] left_weights;
+//	delete[] right_weights;
+//}
 
 NetEdgeSampler::NetEdgeSampler(const char *adj_list_file_name)
 {

@@ -15,13 +15,17 @@ public:
 
 	void AllJointThreaded(const char *ee_net_file_name, const char *doc_entity_net_file_name,
 		const char *doc_words_file_name, const char *entity_cnts_file, const char *word_cnts_file,
-		int vec_dim, const char *dst_dedw_vec_file_name, const char *dst_word_vecs_file_name, 
+		int vec_dim, bool shared, const char *dst_dedw_vec_file_name, const char *dst_word_vecs_file_name, 
 		const char *dst_entity_vecs_file_name);
 
-	void TrainEnergyMT(const char *ee_net_file_name, const char *doc_entity_net_file_name,
-		const char *doc_words_file_name, const char *entity_cnts_file, const char *word_cnts_file,
-		int vec_dim, const char *dst_dedw_vec_file_name, const char *dst_word_vecs_file_name,
-		const char *dst_entity_vecs_file_name);
+	void TrainWEFixed(const char *doc_words_file, const char *doc_entities_file, const char *word_cnts_file,
+		const char *entity_cnts_file, const char *word_vecs_file_name, const char *entity_vecs_file_name, 
+		int vec_dim, const char *dst_doc_vecs_file);
+
+	//void AllJointThreadedPerRound(const char *ee_net_file_name, const char *doc_entity_net_file_name,
+	//	const char *doc_words_file_name, const char *entity_cnts_file, const char *word_cnts_file,
+	//	int vec_dim, bool shared, const char *dst_dedw_vec_file_name, const char *dst_word_vecs_file_name,
+	//	const char *dst_entity_vecs_file_name);
 
 	void TrainDocWord(const char *doc_words_file_name, const char *word_cnts_file, int vec_dim,
 		const char *dst_doc_vecs_file_name, const char *dst_word_vecs_file_name = 0);
@@ -53,11 +57,12 @@ private:
 	void saveConcatnatedVectors(float **vecs0, float **vecs1, int num_vecs, int vec_dim,
 		const char *dst_file_name);
 
+	//void allJointPerRound(int thread_idx, long long *sample_cnts, long long num_samples_per_round, std::discrete_distribution<int> &net_sample_dist,
+	//	NegativeSamplingTrainer &entity_ns_trainer, NegativeSamplingTrainer &word_ns_trainer, std::default_random_engine *generator,
+	//	RandGen *rand_gen);
+
 	void allJoint(int seed, long long num_samples_per_round, std::discrete_distribution<int> &net_sample_dist,
 		NegativeSamplingTrainer &entity_ns_trainer, NegativeSamplingTrainer &word_ns_trainer);
-
-	void trainEnergy(int seed, long long num_samples_per_round, std::discrete_distribution<int> &net_sample_dist,
-		NegativeSamplingTrainer &entity_ns_trainer, NegSamplingDoubleObj &ew_ns_trainer);
 
 	void trainDocWordMT(const char *word_cnts_file, bool update_word_vecs, const char *dst_doc_vecs_file_name);
 	void trainDocWordNet(int seed, long long num_samples_per_round, bool update_word_vecs, 

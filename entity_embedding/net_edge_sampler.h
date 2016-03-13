@@ -3,13 +3,13 @@
 
 #include <random>
 
-#include "adj_list_net.h"
+//#include "adj_list_net.h"
 #include "multinomial_sampler.h"
 
 class NetEdgeSampler
 {
 public:
-	NetEdgeSampler(AdjListNet &adj_list_net);
+	//NetEdgeSampler(AdjListNet &adj_list_net);
 	NetEdgeSampler(const char *adj_list_file_name);
 
 	~NetEdgeSampler();

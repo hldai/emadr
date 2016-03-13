@@ -4,7 +4,7 @@
 class VectorDict
 {
 public:
-	VectorDict(const char *entity_vec_file_name, bool is_bin_file);
+	//VectorDict(const char *entity_vec_file_name, bool is_bin_file);
 	~VectorDict();
 
 	float *GetVector(int idx) { return vecs_[idx]; }

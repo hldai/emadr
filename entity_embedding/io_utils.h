@@ -1,7 +1,7 @@
 #ifndef IO_UTILS_H_
 #define IO_UTILS_H_
 
-#include "edge_net.h"
+//#include "edge_net.h"
 
 class IOUtils
 {
@@ -13,8 +13,8 @@ public:
 
 	static void LoadCountsFile(const char *file_name, int &num, int *&cnts);
 
-	static void LoadNetEdgeListText(const char *file_name, Edge *&dst_edges,
-		int *&weights, int &num_edges, int &num_objs_left, int &num_objs_right);
+	//static void LoadNetEdgeListText(const char *file_name, Edge *&dst_edges,
+	//	int *&weights, int &num_edges, int &num_objs_left, int &num_objs_right);
 
 	static void LoadNetAdjListText(const char *file_name, int &num_vertices,
 		int *&num_adj_vertices, int **&adj_vertices, int **&weights);

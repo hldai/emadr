@@ -4,14 +4,14 @@
 #include <cassert>
 #include <cstring>
 
-VectorDict::VectorDict(const char *entity_vec_file_name, bool is_bin_file)
-{
-	if (is_bin_file)
-		loadBinDataFile(entity_vec_file_name);
-	else
-		loadTextDataFile(entity_vec_file_name);
-	printf("done reading entity vectors.\n");
-}
+//VectorDict::VectorDict(const char *entity_vec_file_name, bool is_bin_file)
+//{
+//	if (is_bin_file)
+//		loadBinDataFile(entity_vec_file_name);
+//	else
+//		loadTextDataFile(entity_vec_file_name);
+//	printf("done reading entity vectors.\n");
+//}
 
 VectorDict::~VectorDict()
 {

@@ -14,7 +14,7 @@ EADocVecTrainer::EADocVecTrainer(int num_rounds, int num_threads, int num_negati
 
 void EADocVecTrainer::AllJointThreaded(const char *ee_net_file_name, const char *doc_entity_net_file_name,
 	const char *doc_words_file_name, const char *entity_cnts_file, const char *word_cnts_file, 
-	int vec_dim, const char *dst_dedw_vec_file_name, const char *dst_word_vecs_file_name,
+	int vec_dim, bool shared, const char *dst_dedw_vec_file_name, const char *dst_word_vecs_file_name,
 	const char *dst_entity_vecs_file_name)
 {
 	initDocEntityNet(doc_entity_net_file_name);
@@ -29,7 +29,11 @@ void EADocVecTrainer::AllJointThreaded(const char *ee_net_file_name, const char 
 
 	ee_vecs0_ = NegativeSamplingTrainer::GetInitedVecs0(num_entities_, entity_vec_dim_);
 	ee_vecs1_ = NegativeSamplingTrainer::GetInitedVecs1(num_entities_, entity_vec_dim_);
-	de_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, entity_vec_dim_);
+
+	if (shared)
+		de_vecs_ = dw_vecs_;
+	else
+		de_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, entity_vec_dim_);
 
 	ExpTable exp_table;
 	NegativeSamplingTrainer entity_ns_trainer(&exp_table, num_negative_samples_,
@@ -39,6 +43,7 @@ void EADocVecTrainer::AllJointThreaded(const char *ee_net_file_name, const char 
 	printf("inited.\n");
 
 	int sum_ee_edge_weights = ee_edge_sampler_->sum_weights();
+	//int sum_ee_edge_weights = 0;
 	int sum_de_edge_weights = de_edge_sampler_->sum_weights();
 	int sum_dw_edge_weights = dw_edge_sampler_->sum_weights();
 	long long sum_weights = sum_ee_edge_weights + sum_de_edge_weights + sum_dw_edge_weights;
@@ -74,71 +79,133 @@ void EADocVecTrainer::AllJointThreaded(const char *ee_net_file_name, const char 
 	//printf("de0: %d\n", de_edge_sampler_->CountZeros());
 	//printf("ee0: %d\n", ee_edge_sampler_->CountZeros());
 
-	saveConcatnatedVectors(de_vecs_, dw_vecs_, num_docs_, entity_vec_dim_, dst_dedw_vec_file_name);
+	if (shared)
+		IOUtils::SaveVectors(dw_vecs_, word_vec_dim_, num_docs_, dst_dedw_vec_file_name);
+	else
+		saveConcatnatedVectors(de_vecs_, dw_vecs_, num_docs_, entity_vec_dim_, dst_dedw_vec_file_name);
+
 	IOUtils::SaveVectors(word_vecs_, word_vec_dim_, num_words_, dst_word_vecs_file_name);
 	IOUtils::SaveVectors(ee_vecs0_, entity_vec_dim_, num_entities_, dst_entity_vecs_file_name);
 }
 
-void EADocVecTrainer::TrainEnergyMT(const char *ee_net_file_name, const char *doc_entity_net_file_name,
-	const char *doc_words_file_name, const char *entity_cnts_file, const char *word_cnts_file,
-	int vec_dim, const char *dst_dedw_vec_file_name, const char *dst_word_vecs_file_name,
-	const char *dst_entity_vecs_file_name)
+void EADocVecTrainer::TrainWEFixed(const char *doc_words_file, const char *doc_entities_file, const char *word_cnts_file,
+	const char *entity_cnts_file, const char *word_vecs_file_name, const char *entity_vecs_file_name,
+	int vec_dim, const char *dst_doc_vecs_file)
 {
-	initDocEntityNet(doc_entity_net_file_name);
-	initDocWordNet(doc_words_file_name);
-	initEntityEntityNet(ee_net_file_name);
+	initDocWordNet(doc_words_file);
+	initDocEntityNet(doc_entities_file);
 
-	entity_vec_dim_ = word_vec_dim_ = vec_dim;
-	int doc_vec_dim = entity_vec_dim_ + word_vec_dim_;
+	word_vec_dim_ = vec_dim;
 
 	printf("initing model....\n");
-	word_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_words_, word_vec_dim_);
-	ee_vecs0_ = NegativeSamplingTrainer::GetInitedVecs0(num_entities_, entity_vec_dim_);
-	ee_vecs1_ = NegativeSamplingTrainer::GetInitedVecs1(num_entities_, entity_vec_dim_);
+	int tmp_num = 0, tmp_dim = 0;
+	IOUtils::LoadVectors(word_vecs_file_name, tmp_num, tmp_dim, word_vecs_);
+	if (tmp_num != num_words_ || tmp_dim != vec_dim)
+	{
+		printf("num words: %d %d\n", num_words_, tmp_num);
+		printf("vec dim: %d %d\n", vec_dim, tmp_dim);
+		return;
+	}
 
-	doc_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, doc_vec_dim);
+	IOUtils::LoadVectors(entity_vecs_file_name, tmp_num, tmp_dim, ee_vecs0_);
+	if (tmp_num != num_entities_ || tmp_dim != vec_dim)
+	{
+		printf("num entities: %d %d\n", num_words_, tmp_num);
+		printf("vec dim: %d %d\n", vec_dim, tmp_dim);
+		return;
+	}
 
-	ExpTable exp_table;
-	NegativeSamplingTrainer entity_ns_trainer(&exp_table, num_negative_samples_,
-		entity_cnts_file);
-	NegSamplingDoubleObj ew_ns_trainer(&exp_table, num_negative_samples_, entity_cnts_file, word_cnts_file);
+	//dw_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, word_vec_dim_);
+	dw_vecs_ = NegativeSamplingTrainer::GetInitedVecs1(num_docs_, word_vec_dim_);
 	printf("inited.\n");
 
-	int sum_ee_edge_weights = ee_edge_sampler_->sum_weights();
-	int sum_de_edge_weights = de_edge_sampler_->sum_weights();
-	int sum_dw_edge_weights = dw_edge_sampler_->sum_weights();
-	long long sum_weights = sum_ee_edge_weights + sum_de_edge_weights + sum_dw_edge_weights;
-	long long num_samples_per_round = sum_weights / 2;
-	//long long num_samples_per_round = sum_dw_edge_weights;
-	//int num_samples_per_round = sum_ee_edge_weights + sum_de_edge_weights;
-
-	printf("edge_weights: %d %d %d\n", sum_ee_edge_weights, sum_de_edge_weights, sum_dw_edge_weights);
-	printf("%lld samples per round\n", num_samples_per_round);
-
-	float weight_portions[] = { (float)sum_ee_edge_weights / sum_weights,
-		(float)(sum_de_edge_weights + sum_dw_edge_weights) / sum_weights };
-	printf("net distribution: %f %f\n", weight_portions[0], weight_portions[1]);
-	std::discrete_distribution<int> net_sample_dist(weight_portions, weight_portions + 2);
-	//std::discrete_distribution<int> net_sample_dist{ 0, 1 };
-
-	int seeds[] = { 317, 7, 31, 297, 1238, 23487, 238593, 92384, 129380, 23848 };
-	std::thread *threads = new std::thread[num_threads_];
-	for (int i = 0; i < num_threads_; ++i)
-	{
-		int cur_seed = seeds[i];
-		threads[i] = std::thread([&, cur_seed, num_samples_per_round]
-		{
-			trainEnergy(cur_seed, num_samples_per_round, net_sample_dist, entity_ns_trainer, ew_ns_trainer);
-		});
-	}
-	for (int i = 0; i < num_threads_; ++i)
-		threads[i].join();
-	printf("\n");
-
-	IOUtils::SaveVectors(doc_vecs_, doc_vec_dim, num_docs_, dst_dedw_vec_file_name);
-	IOUtils::SaveVectors(word_vecs_, word_vec_dim_, num_words_, dst_word_vecs_file_name);
-	IOUtils::SaveVectors(ee_vecs0_, entity_vec_dim_, num_entities_, dst_entity_vecs_file_name);
+	trainDocWordMT(word_cnts_file, false, dst_doc_vecs_file);
 }
+
+//void EADocVecTrainer::AllJointThreadedPerRound(const char *ee_net_file_name, const char *doc_entity_net_file_name,
+//	const char *doc_words_file_name, const char *entity_cnts_file, const char *word_cnts_file,
+//	int vec_dim, bool shared, const char *dst_dedw_vec_file_name, const char *dst_word_vecs_file_name,
+//	const char *dst_entity_vecs_file_name)
+//{
+//	initDocEntityNet(doc_entity_net_file_name);
+//	initDocWordNet(doc_words_file_name);
+//	initEntityEntityNet(ee_net_file_name);
+//
+//	entity_vec_dim_ = word_vec_dim_ = vec_dim;
+//
+//	printf("initing model....\n");
+//	word_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_words_, word_vec_dim_);
+//	dw_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, word_vec_dim_);
+//
+//	ee_vecs0_ = NegativeSamplingTrainer::GetInitedVecs0(num_entities_, entity_vec_dim_);
+//	ee_vecs1_ = NegativeSamplingTrainer::GetInitedVecs1(num_entities_, entity_vec_dim_);
+//
+//	if (shared)
+//		de_vecs_ = dw_vecs_;
+//	else
+//		de_vecs_ = NegativeSamplingTrainer::GetInitedVecs0(num_docs_, entity_vec_dim_);
+//
+//	ExpTable exp_table;
+//	NegativeSamplingTrainer entity_ns_trainer(&exp_table, num_negative_samples_,
+//		entity_cnts_file);
+//	NegativeSamplingTrainer word_ns_trainer(&exp_table, num_negative_samples_,
+//		word_cnts_file);
+//	printf("inited.\n");
+//
+//	int sum_ee_edge_weights = ee_edge_sampler_->sum_weights();
+//	int sum_de_edge_weights = de_edge_sampler_->sum_weights();
+//	int sum_dw_edge_weights = dw_edge_sampler_->sum_weights();
+//	long long sum_weights = sum_ee_edge_weights + sum_de_edge_weights + sum_dw_edge_weights;
+//	long long num_samples_per_round = sum_weights / 4;
+//	//long long num_samples_per_round = sum_dw_edge_weights;
+//	//int num_samples_per_round = sum_ee_edge_weights + sum_de_edge_weights;
+//
+//	printf("edge_weights: %d %d %d\n", sum_ee_edge_weights, sum_de_edge_weights, sum_dw_edge_weights);
+//	printf("%lld samples per round\n", num_samples_per_round);
+//
+//	float weight_portions[] = { (float)sum_ee_edge_weights / sum_weights,
+//		(float)sum_de_edge_weights / sum_weights, (float)sum_dw_edge_weights / sum_weights };
+//	printf("net distribution: %f %f %f\n", weight_portions[0], weight_portions[1],
+//		weight_portions[2]);
+//	std::discrete_distribution<int> net_sample_dist(weight_portions, weight_portions + 3);
+//	//std::discrete_distribution<int> net_sample_dist{ 0, 0, 1 };
+//
+//	int seeds[] = { 317, 7, 31, 297, 1238, 23487, 238593, 92384, 129380, 23848 };
+//	std::thread *threads = new std::thread[num_threads_];
+//
+//	long long *sample_cnts = new long long[num_threads_];
+//	std::default_random_engine *generators = new std::default_random_engine[num_threads_];
+//	RandGen *rand_gen = new RandGen[num_threads_];
+//	for (int i = 0; i < num_threads_; ++i)
+//	{
+//		generators[i] = std::default_random_engine(seeds[i]);
+//		rand_gen[i].SetSeed(seeds[i]);
+//		sample_cnts[i] = 0;
+//	}
+//
+//	int val = 1;
+//	for (int j = 0; j < num_threads_; ++j)
+//	{
+//		std::default_random_engine *cur_gen = &generators[j];
+//		RandGen *cur_rand_gen = &rand_gen[j];
+//		threads[j] = std::thread([&, j, num_samples_per_round, cur_gen, cur_rand_gen, sample_cnts]
+//		{
+//			allJointPerRound(j, sample_cnts, num_samples_per_round, net_sample_dist, entity_ns_trainer, word_ns_trainer,
+//				cur_gen, cur_rand_gen);
+//		});
+//	}
+//	for (int j = 0; j < num_threads_; ++j)
+//		threads[j].join();
+//	printf("\n");
+//
+//	if (shared)
+//		IOUtils::SaveVectors(dw_vecs_, word_vec_dim_, num_docs_, dst_dedw_vec_file_name);
+//	else
+//		saveConcatnatedVectors(de_vecs_, dw_vecs_, num_docs_, entity_vec_dim_, dst_dedw_vec_file_name);
+//
+//	IOUtils::SaveVectors(word_vecs_, word_vec_dim_, num_words_, dst_word_vecs_file_name);
+//	IOUtils::SaveVectors(ee_vecs0_, entity_vec_dim_, num_entities_, dst_entity_vecs_file_name);
+//}
 
 void EADocVecTrainer::TrainDocWord(const char *doc_words_file_name, const char *word_cnts_file, int vec_dim,
 	const char *dst_doc_vecs_file_name, const char *dst_word_vecs_file_name)
@@ -200,6 +267,67 @@ void EADocVecTrainer::saveConcatnatedVectors(float **vecs0, float **vecs1, int n
 	fclose(fp);
 }
 
+//void EADocVecTrainer::allJointPerRound(int thread_idx, long long *sample_cnts, long long num_samples_per_round, std::discrete_distribution<int> &net_sample_dist,
+//	NegativeSamplingTrainer &entity_ns_trainer, NegativeSamplingTrainer &word_ns_trainer, std::default_random_engine *pgenerator, 
+//	RandGen *prand_gen)
+//{
+//	//printf("seed %d samples_per_round %d. training...\n", seed, num_samples_per_round);
+//	//printf("%d %d\n", pgenerator, prand_gen);
+//	std::default_random_engine &generator = *pgenerator;
+//	RandGen &rand_gen = *prand_gen;
+//
+//	//const float min_alpha = starting_alpha_ * 0.001;
+//	long long thread_num_samples = num_rounds_ * num_samples_per_round;
+//	long long total_num_samples = thread_num_samples * num_threads_;
+//	long long cur_num_samples = 0;
+//	for (int k = 0; k < num_threads_; ++k)
+//		cur_num_samples += sample_cnts[k];
+//
+//	float *tmp_neu1e = new float[entity_vec_dim_];
+//
+//	float alpha = starting_alpha_ + (min_alpha_ - starting_alpha_) * cur_num_samples / total_num_samples;
+//
+//	printf("\ralpha %f", alpha);
+//	fflush(stdout);
+//	long long &cur_thread_num_samples = sample_cnts[thread_idx];
+//	for (; cur_thread_num_samples < thread_num_samples; ++cur_thread_num_samples)
+//	{
+//		if (cur_thread_num_samples % 100000 == 100000 - 1)
+//		{
+//			cur_num_samples = 0;
+//			for (int k = 0; k < num_threads_; ++k)
+//				cur_num_samples += sample_cnts[k];
+//			alpha = starting_alpha_ + (min_alpha_ - starting_alpha_) * cur_num_samples / total_num_samples;
+//			printf("\ralpha %f %lld", alpha, cur_num_samples);
+//		}
+//
+//		int net_idx = net_sample_dist(generator);
+//		int va = 0, vb = 0;
+//		if (net_idx == 0)
+//		{
+//			ee_edge_sampler_->SampleEdge(va, vb, generator, rand_gen);
+//			entity_ns_trainer.TrainEdge(entity_vec_dim_, ee_vecs0_[va], vb, ee_vecs1_,
+//				alpha, tmp_neu1e, generator);
+//			entity_ns_trainer.TrainEdge(entity_vec_dim_, ee_vecs0_[vb], va, ee_vecs1_,
+//				alpha, tmp_neu1e, generator);
+//		}
+//		else if (net_idx == 1)
+//		{
+//			de_edge_sampler_->SampleEdge(va, vb, generator, rand_gen);
+//			entity_ns_trainer.TrainEdge(entity_vec_dim_, de_vecs_[va], vb, ee_vecs0_,
+//				alpha, tmp_neu1e, generator);
+//		}
+//		else if (net_idx == 2)
+//		{
+//			dw_edge_sampler_->SampleEdge(va, vb, generator, rand_gen);
+//			word_ns_trainer.TrainEdge(word_vec_dim_, dw_vecs_[va], vb, word_vecs_,
+//				alpha, tmp_neu1e, generator);
+//		}
+//	}
+//
+//	delete[] tmp_neu1e;
+//}
+
 void EADocVecTrainer::allJoint(int seed, long long num_samples_per_round, std::discrete_distribution<int> &net_sample_dist,
 	NegativeSamplingTrainer &entity_ns_trainer, NegativeSamplingTrainer &word_ns_trainer)
 {
@@ -245,56 +373,6 @@ void EADocVecTrainer::allJoint(int seed, long long num_samples_per_round, std::d
 				dw_edge_sampler_->SampleEdge(va, vb, generator, rand_gen);
 				word_ns_trainer.TrainEdge(word_vec_dim_, dw_vecs_[va], vb, word_vecs_,
 					alpha, tmp_neu1e, generator);
-			}
-		}
-	}
-
-	delete[] tmp_neu1e;
-}
-
-void EADocVecTrainer::trainEnergy(int seed, long long num_samples_per_round, std::discrete_distribution<int> &net_sample_dist,
-	NegativeSamplingTrainer &entity_ns_trainer, NegSamplingDoubleObj &ew_ns_trainer)
-{
-	//printf("seed %d samples_per_round %d. training...\n", seed, num_samples_per_round);
-	std::default_random_engine generator(seed);
-
-	RandGen rand_gen(seed);
-
-	//const float min_alpha = starting_alpha_ * 0.001;
-	long long total_num_samples = num_rounds_ * num_samples_per_round;
-
-	float *tmp_neu1e = new float[entity_vec_dim_ + word_vec_dim_];
-
-	float alpha = starting_alpha_;
-	for (int i = 0; i < num_rounds_; ++i)
-	{
-		printf("\rround %d, alpha %f", i, alpha);
-		fflush(stdout);
-		for (int j = 0; j < num_samples_per_round; ++j)
-		{
-			long long cur_num_samples = (i * num_samples_per_round) + j;
-			if (cur_num_samples % 10000 == 10000 - 1)
-				alpha = starting_alpha_ + (min_alpha_ - starting_alpha_) * cur_num_samples / total_num_samples;
-
-			int net_idx = net_sample_dist(generator);
-			if (net_idx == 0)
-			{
-				int va = 0, vb = 0;
-				ee_edge_sampler_->SampleEdge(va, vb, generator, rand_gen);
-				entity_ns_trainer.TrainEdge(entity_vec_dim_, ee_vecs0_[va], vb, ee_vecs1_,
-					alpha, tmp_neu1e, generator);
-				entity_ns_trainer.TrainEdge(entity_vec_dim_, ee_vecs0_[vb], va, ee_vecs1_,
-					alpha, tmp_neu1e, generator);
-			}
-			else if (net_idx == 1)
-			{
-				int eidx = 0, widx = 0, didx = 0;
-				dw_edge_sampler_->SampleEdge(didx, widx, generator, rand_gen);
-				eidx = de_edge_sampler_->SampleRight(didx, rand_gen);
-				//if (eidx < 0)
-				//	printf("eidx %d %d\n", didx, eidx);
-				ew_ns_trainer.TrainEdge(entity_vec_dim_, word_vec_dim_, doc_vecs_[didx], eidx, ee_vecs0_,
-					widx, word_vecs_, alpha, tmp_neu1e, generator);
 			}
 		}
 	}

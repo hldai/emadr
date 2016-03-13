@@ -38,17 +38,17 @@ void NegSamplingDoubleObj::TrainEdge(int dim0, int dim1, float *vec_in, int obj_
 
 		float dot_product = 0;
 		if (target0 > -1)
-			for (int i = 0; i < dim0; ++i)
-				dot_product += vec_in[i] * vecs_out0[target0][i];
+			for (int j = 0; j < dim0; ++j)
+				dot_product += vec_in[j] * 0.2f * vecs_out0[target0][j];
 		if (target1 > -1)
-			for (int i = 0; i < dim1; ++i)
-				dot_product += vec_in[i + dim0] * vecs_out1[target1][i];
+			for (int j = 0; j < dim1; ++j)
+				dot_product += vec_in[j + dim0] * vecs_out1[target1][j];
 
 		float g = (label - exp_table_->getSigmaValue(dot_product)) * alpha;
 
 		if (target0 > -1)
 			for (int j = 0; j < dim0; ++j)
-				tmp_neu1e[j] += g * vecs_out0[target0][j];
+				tmp_neu1e[j] += g * 0.2f * vecs_out0[target0][j];
 		if (target1 > -1)
 			for (int j = 0; j < dim1; ++j)
 				tmp_neu1e[j + dim0] += g * vecs_out1[target1][j];
@@ -57,7 +57,7 @@ void NegSamplingDoubleObj::TrainEdge(int dim0, int dim1, float *vec_in, int obj_
 		{
 			if (target0 > -1)
 				for (int j = 0; j < dim0; ++j)
-					vecs_out0[target0][j] += g * vec_in[j] - lambda * vecs_out0[target0][j];
+					vecs_out0[target0][j] += g * 0.2f * vec_in[j] - lambda * vecs_out0[target0][j];
 			if (target1 > -1)
 				for (int j = 0; j < dim1; ++j)
 					vecs_out1[target1][j] += g * vec_in[j + dim0] - lambda * vecs_out1[target1][j];
