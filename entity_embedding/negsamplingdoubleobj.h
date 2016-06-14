@@ -3,7 +3,7 @@
 
 #include <random>
 
-#include "exp_table.h"
+#include "exptable.h"
 #include "negsamplingbase.h"
 
 class NegSamplingDoubleObj : public NegSamplingBase
@@ -13,7 +13,7 @@ public:
 		const char *freq_file0, const char *freq_file1);
 	~NegSamplingDoubleObj();
 
-	void TrainEdge(int dim0, int dim1, float *vec_in, int obj_out0, float **vecs_out0, int obj_out1,
+	void TrainPair(int dim0, int dim1, float *vec_in, int obj_out0, float **vecs_out0, int obj_out1,
 		float **vecs_out1, float alpha, float *tmp_neu1e, std::default_random_engine &generator,
 		bool update_in = true, bool update_out = true);
 

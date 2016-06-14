@@ -1,9 +1,9 @@
-#ifndef MULTINOMIAL_SAMPLER_H_
-#define MULTINOMIAL_SAMPLER_H_
+#ifndef MULTINOMIALSAMPLER_H_
+#define MULTINOMIALSAMPLER_H_
 
 #include <random>
 
-#include "rand_gen.h"
+#include "randgen.h"
 
 class MultinomialSampler
 {

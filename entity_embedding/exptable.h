@@ -1,5 +1,5 @@
-#ifndef EXP_TABLE_H_
-#define EXP_TABLE_H_
+#ifndef EXPTABLE_H_
+#define EXPTABLE_H_
 
 class ExpTable
 {

@@ -3,8 +3,8 @@
 
 #include <random>
 
-#include "net_edge_sampler.h"
-#include "negative_sampling_trainer.h"
+#include "pairsampler.h"
+#include "negtrain.h"
 #include "negsamplingdoubleobj.h"
 
 class EADocVecTrainer
@@ -13,7 +13,7 @@ public:
 	EADocVecTrainer(int num_rounds, int num_threads, int num_negative_samples, float starting_alpha,
 		float min_alpha = 0.0001f);
 
-	void AllJointThreaded(const char *ee_net_file_name, const char *doc_entity_net_file_name,
+	void AllJointThreaded(const char *ee_file, const char *doc_entity_file,
 		const char *doc_words_file_name, const char *entity_cnts_file, const char *word_cnts_file,
 		int vec_dim, bool shared, const char *dst_dedw_vec_file_name, const char *dst_word_vecs_file_name, 
 		const char *dst_entity_vecs_file_name);
@@ -22,11 +22,6 @@ public:
 		const char *entity_cnts_file, const char *word_vecs_file_name, const char *entity_vecs_file_name, 
 		int vec_dim, const char *dst_doc_vecs_file);
 
-	//void AllJointThreadedPerRound(const char *ee_net_file_name, const char *doc_entity_net_file_name,
-	//	const char *doc_words_file_name, const char *entity_cnts_file, const char *word_cnts_file,
-	//	int vec_dim, bool shared, const char *dst_dedw_vec_file_name, const char *dst_word_vecs_file_name,
-	//	const char *dst_entity_vecs_file_name);
-
 	void TrainDocWord(const char *doc_words_file_name, const char *word_cnts_file, int vec_dim,
 		const char *dst_doc_vecs_file_name, const char *dst_word_vecs_file_name = 0);
 
@@ -34,39 +29,43 @@ public:
 		const char *word_vecs_file_name, int vec_dim, const char *dst_doc_vecs_file_name);
 
 private:
-	void initDocWordNet(const char *doc_words_file_name)
+	void initDocWordList(const char *doc_words_file_name)
 	{
-		dw_edge_sampler_ = new NetEdgeSampler(doc_words_file_name);
-		num_words_ = dw_edge_sampler_->num_vertex_right();
-		num_docs_ = dw_edge_sampler_->num_vertex_left();
+		dw_sampler_ = new PairSampler(doc_words_file_name);
+		num_words_ = dw_sampler_->num_vertex_right();
+		num_docs_ = dw_sampler_->num_vertex_left();
+		printf("%d docs, %d words.\n", num_docs_, num_words_);
 	}
 
-	void initDocEntityNet(const char *doc_entity_net_file_name)
+	void initDocEntityList(const char *de_file)
 	{
-		de_edge_sampler_ = new NetEdgeSampler(doc_entity_net_file_name);
-		num_docs_ = de_edge_sampler_->num_vertex_left();
-		num_entities_ = de_edge_sampler_->num_vertex_right();
+		de_sampler_ = new PairSampler(de_file);
+		num_docs_ = de_sampler_->num_vertex_left();
+		num_entities_ = de_sampler_->num_vertex_right();
+		printf("%d docs, %d entities.\n", num_docs_, num_entities_);
 	}
 
-	void initEntityEntityNet(const char *ee_net_file_name)
+	void initEntityEntityList(const char *ee_file)
 	{
-		ee_edge_sampler_ = new NetEdgeSampler(ee_net_file_name);
-		num_entities_ = ee_edge_sampler_->num_vertex_left();
+		ee_sampler_ = new PairSampler(ee_file);
+		num_entities_ = ee_sampler_->num_vertex_left();
+		printf("%d entities.\n", num_entities_);
 	}
 
 	void saveConcatnatedVectors(float **vecs0, float **vecs1, int num_vecs, int vec_dim,
 		const char *dst_file_name);
 
-	//void allJointPerRound(int thread_idx, long long *sample_cnts, long long num_samples_per_round, std::discrete_distribution<int> &net_sample_dist,
-	//	NegativeSamplingTrainer &entity_ns_trainer, NegativeSamplingTrainer &word_ns_trainer, std::default_random_engine *generator,
-	//	RandGen *rand_gen);
-
-	void allJoint(int seed, long long num_samples_per_round, std::discrete_distribution<int> &net_sample_dist,
-		NegativeSamplingTrainer &entity_ns_trainer, NegativeSamplingTrainer &word_ns_trainer);
+	void allJoint(int seed, long long num_samples_per_round, std::discrete_distribution<int> &list_sample_dist,
+		NegTrain &entity_ns_trainer, NegTrain &word_ns_trainer);
 
 	void trainDocWordMT(const char *word_cnts_file, bool update_word_vecs, const char *dst_doc_vecs_file_name);
-	void trainDocWordNet(int seed, long long num_samples_per_round, bool update_word_vecs, 
-		NegativeSamplingTrainer &word_ns_trainer);
+	void trainDocWordList(int seed, long long num_samples_per_round, bool update_word_vecs, 
+		NegTrain &word_ns_trainer);
+
+	void trainDWEMT(const char *word_cnts_file, const char *entity_cnts_file, bool update_word_vecs, 
+		bool update_entity_vecs, const char *dst_doc_vecs_file_name);
+	void trainDWETh(int seed, long long num_samples_per_round, bool update_word_vecs, bool update_entity_vecs, std::discrete_distribution<int> &list_sample_dist,
+		NegTrain &word_ns_trainer, NegTrain &entity_ns_trainer);
 
 private:
 	int num_rounds_ = 10;
@@ -76,9 +75,9 @@ private:
 	float starting_alpha_;
 	float min_alpha_;
 
-	NetEdgeSampler *dw_edge_sampler_ = 0;
-	NetEdgeSampler *de_edge_sampler_ = 0;
-	NetEdgeSampler *ee_edge_sampler_ = 0;
+	PairSampler *dw_sampler_ = 0;
+	PairSampler *de_sampler_ = 0;
+	PairSampler *ee_sampler_ = 0;
 
 	int num_words_ = 0;
 	int num_docs_ = 0;

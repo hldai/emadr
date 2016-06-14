@@ -1,4 +1,4 @@
-#include "multinomial_sampler.h"
+#include "multinomialsampler.h"
 
 MultinomialSampler::MultinomialSampler(int *weights, int len) : uint_dist(0, kDefMaxVal)
 {

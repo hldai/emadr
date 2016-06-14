@@ -90,4 +90,5 @@ entity_embedding/x64/
 *.opendb
 *.vcxproj
 *.filters
+*.db
 

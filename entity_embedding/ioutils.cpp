@@ -1,4 +1,4 @@
-#include "io_utils.h"
+#include "ioutils.h"
 
 #include <cstdio>
 #include <cassert>
@@ -46,36 +46,13 @@ void IOUtils::LoadCountsFile(const char *file_name, int &num, int *&cnts)
 	fclose(fp);
 }
 
-//void IOUtils::LoadNetEdgeListText(const char *file_name, Edge *&dst_edges, int *&weights, 
-//	int &num_edges, int &num_objs_left, int &num_objs_right)
-//{
-//	if (file_name == 0)
-//		return;
-//
-//	printf("Loading edge list file %s ...\n", file_name);
-//
-//	FILE *fp = fopen(file_name, "r");
-//	assert(fp != 0);
-//
-//	fscanf(fp, "%d %d %d", &num_objs_left, &num_objs_right, &num_edges);
-//	dst_edges = new Edge[num_edges];
-//	weights = new int[num_edges];
-//
-//	for (int i = 0; i < num_edges; ++i)
-//		fscanf(fp, "%d %d %d", &dst_edges[i].va, &dst_edges[i].vb, &weights[i]);
-//
-//	fclose(fp);
-//
-//	printf("Done.\n");
-//}
-
-void IOUtils::LoadNetAdjListText(const char *file_name, int &num_vertices,
+void IOUtils::LoadPairsAdjListText(const char *file_name, int &num_vertices,
 	int *&num_adj_vertices, int **&adj_vertices, int **&weights)
 {
 
 }
 
-void IOUtils::LoadNetAdjListBin(const char * file_name, int & num_vertices, 
+void IOUtils::LoadPairsAdjListBin(const char * file_name, int & num_vertices,
 	int *& num_adj_vertices, int **& adj_vertices, int **& weights)
 {
 	FILE *fp = fopen(file_name, "rb");

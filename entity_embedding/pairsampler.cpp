@@ -1,50 +1,13 @@
-#include "net_edge_sampler.h"
+#include "pairsampler.h"
 
 #include <algorithm>
 #include <cstdio>
 #include <cassert>
 
-#include "negative_sampling_trainer.h"
-#include "math_utils.h"
+#include "negtrain.h"
+#include "mathutils.h"
 
-//NetEdgeSampler::NetEdgeSampler(AdjListNet &adj_list_net)
-//{
-//	int *left_weights = new int[adj_list_net.num_vertices_left];
-//	int *right_weights = new int[adj_list_net.num_vertices_right];
-//	std::fill(right_weights, right_weights + adj_list_net.num_vertices_right, 0);
-//
-//	//right_vertex_dists_ = new std::discrete_distribution<int>[adj_list_net.num_vertices_left];
-//	right_vertex_samplers_ = new MultinomialSampler[adj_list_net.num_vertices_left];
-//
-//	for (int i = 0; i < adj_list_net.num_vertices_left; ++i)
-//	{
-//		//right_vertex_dists_[i] = std::discrete_distribution<int>(adj_list_net.weights[i],
-//		//	adj_list_net.weights[i] + adj_list_net.num_adj_vertices[i]);
-//		right_vertex_samplers_[i].Init(adj_list_net.weights[i], adj_list_net.num_adj_vertices[i]);
-//
-//		left_weights[i] = 0;
-//		for (int j = 0; j < adj_list_net.num_adj_vertices[i]; ++j)
-//		{
-//			left_weights[i] += adj_list_net.weights[i][j];
-//			right_weights[adj_list_net.adj_vertices[i][j]] += adj_list_net.weights[i][j];
-//		}
-//	}
-//
-//	//left_vertex_dist_ = std::discrete_distribution<int>(left_weights,
-//	//	left_weights + adj_list_net.num_vertices_left);
-//	//left_vertex_sampler_.Init(left_weights, adj_list_net.num_vertices_left);
-//
-//	float *neg_sampling_weights = NegativeSamplingTrainer::GetDefNegativeSamplingWeights(right_weights, 
-//		adj_list_net.num_vertices_right);
-//	neg_sampling_dist_ = std::discrete_distribution<int>(neg_sampling_weights, 
-//		neg_sampling_weights + adj_list_net.num_vertices_right);
-//	delete[] neg_sampling_weights;
-//
-//	delete[] left_weights;
-//	delete[] right_weights;
-//}
-
-NetEdgeSampler::NetEdgeSampler(const char *adj_list_file_name)
+PairSampler::PairSampler(const char *adj_list_file_name)
 {
 	printf("loading %s ...\n", adj_list_file_name);
 	FILE *fp = fopen(adj_list_file_name, "rb");
@@ -97,10 +60,10 @@ NetEdgeSampler::NetEdgeSampler(const char *adj_list_file_name)
 
 	left_vertex_dist_ = std::discrete_distribution<int>(left_weights,
 		left_weights + num_vertex_left_);
-	printf("num: %d\n", num_vertex_left_);
+	//printf("num: %d\n", num_vertex_left_);
 	//left_vertex_sampler_.Init(left_weights, num_vertex_left_);
 
-	float *neg_sampling_weights = NegativeSamplingTrainer::GetDefNegativeSamplingWeights(right_weights,
+	float *neg_sampling_weights = NegTrain::GetDefNegativeSamplingWeights(right_weights,
 		num_vertex_right_);
 	neg_sampling_dist_ = std::discrete_distribution<int>(neg_sampling_weights,
 		neg_sampling_weights + num_vertex_right_);
@@ -112,7 +75,7 @@ NetEdgeSampler::NetEdgeSampler(const char *adj_list_file_name)
 	printf("done.\n");
 }
 
-NetEdgeSampler::~NetEdgeSampler()
+PairSampler::~PairSampler()
 {
 	if (right_vertex_dists_ != 0)
 		delete[] right_vertex_dists_;
@@ -120,7 +83,7 @@ NetEdgeSampler::~NetEdgeSampler()
 		delete[] right_vertex_samplers_;
 }
 
-void NetEdgeSampler::SampleEdge(int &lidx, int &ridx, std::default_random_engine &generator)
+void PairSampler::SamplePair(int &lidx, int &ridx, std::default_random_engine &generator)
 {
 	lidx = left_vertex_dist_(generator);
 	//ridx = adj_list_[lidx][right_vertex_dists_[lidx](generator)];
@@ -131,7 +94,7 @@ void NetEdgeSampler::SampleEdge(int &lidx, int &ridx, std::default_random_engine
 	//ridx = adj_list_[lidx][rand() % num_adj_vertices_[lidx]];
 }
 
-void NetEdgeSampler::SampleEdge(int &lidx, int &ridx, std::default_random_engine &generator, RandGen &rand_gen)
+void PairSampler::SamplePair(int &lidx, int &ridx, std::default_random_engine &generator, RandGen &rand_gen)
 {
 	lidx = left_vertex_dist_(generator);
 	//ridx = adj_list_[lidx][right_vertex_dists_[lidx](generator)];
@@ -142,7 +105,7 @@ void NetEdgeSampler::SampleEdge(int &lidx, int &ridx, std::default_random_engine
 	//ridx = adj_list_[lidx][rand() % num_adj_vertices_[lidx]];
 }
 
-int NetEdgeSampler::SampleRight(int lidx, RandGen &rand_gen)
+int PairSampler::SampleRight(int lidx, RandGen &rand_gen)
 {
 	if (num_adj_vertices_[lidx] == 0)
 		return -1;

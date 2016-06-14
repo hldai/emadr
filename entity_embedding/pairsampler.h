@@ -1,21 +1,19 @@
-#ifndef NET_EDGE_SAMPLER_H_
-#define NET_EDGE_SAMPLER_H_
+#ifndef PAIRSAMPLER_H_
+#define PAIRSAMPLER_H_
 
 #include <random>
 
-//#include "adj_list_net.h"
-#include "multinomial_sampler.h"
+#include "multinomialsampler.h"
 
-class NetEdgeSampler
+class PairSampler
 {
 public:
-	//NetEdgeSampler(AdjListNet &adj_list_net);
-	NetEdgeSampler(const char *adj_list_file_name);
+	PairSampler(const char *adj_list_file_name);
 
-	~NetEdgeSampler();
+	~PairSampler();
 
-	void SampleEdge(int &lidx, int &ridx, std::default_random_engine &generator);
-	void SampleEdge(int &lidx, int &ridx, std::default_random_engine &generator, RandGen &rand_gen);
+	void SamplePair(int &lidx, int &ridx, std::default_random_engine &generator);
+	void SamplePair(int &lidx, int &ridx, std::default_random_engine &generator, RandGen &rand_gen);
 
 	int SampleRight(int lidx, RandGen &rand_gen);
 

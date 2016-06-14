@@ -1,11 +1,11 @@
-#ifndef NEGATIVE_SAMPLING_TRAINER_H_
-#define NEGATIVE_SAMPLING_TRAINER_H_
+#ifndef NEGTRAIN_H_
+#define NEGTRAIN_H_
 
 #include <random>
 
 #include "negsamplingbase.h"
 
-class NegativeSamplingTrainer : public NegSamplingBase
+class NegTrain : public NegSamplingBase
 {
 public:
 	static float *GetInitedCMParams(int vec_dim);
@@ -21,35 +21,35 @@ public:
 	// e.g. objs0: documents, objs1: words
 	//NegativeSamplingTrainer(ExpTable *exp_table, int num_negative_samples, int num_objs1,
 	//	std::discrete_distribution<int> *negative_sample_dist);
-	NegativeSamplingTrainer(ExpTable *exp_table, int num_negative_samples, int num_objs1,
+	NegTrain(ExpTable *exp_table, int num_negative_samples, int num_objs1,
 		int *obj_cnts);
 
-	NegativeSamplingTrainer(ExpTable *exp_table, int num_negative_samples,
+	NegTrain(ExpTable *exp_table, int num_negative_samples,
 		const char *freq_file);
 
 	//NegativeSamplingTrainer(ExpTable *exp_table, int vec_dim, int num_objs, int num_negative_samples,
 	//	std::discrete_distribution<int> *obj_sample_dist);
 
-	~NegativeSamplingTrainer();
+	~NegTrain();
 
 	// obj0 -> obj1
-	void TrainEdge(int vec_dim, float *vec0, int obj1, float **vecs1, float alpha, float *tmp_neu1e,
-		std::default_random_engine &generator, bool update0 = true, bool update1 = true);
+	void TrainPair(int vec_dim, float *vec0, int obj1, float **vecs1, float alpha, float *tmp_neu1e,
+		std::default_random_engine &generator, float gamma, bool update0 = true, bool update1 = true);
 
 	// controled mix
 	// dimention of vec0: vec_dim * 2
-	void TrainEdgeCM(int vec_dim, float *vec0, int obj1, float **vecs1, float *cm_params, bool complement,
+	void TrainPairCM(int vec_dim, float *vec0, int obj1, float **vecs1, float *cm_params, bool complement,
 		float alpha, float *tmp_neu1e, float *tmp_cme, std::default_random_engine &generator,
 		bool update0 = true, bool update1 = true, bool update_cm_params = true)
 	{
 		if (complement)
 		{
-			trainEdgeCMComplement(vec_dim, vec0, obj1, vecs1, cm_params, alpha, tmp_neu1e,
+			trainPairCMComplement(vec_dim, vec0, obj1, vecs1, cm_params, alpha, tmp_neu1e,
 				tmp_cme, generator, update0, update1, update_cm_params);
 		}
 		else
 		{
-			trainEdgeCM(vec_dim, vec0, obj1, vecs1, cm_params, alpha, tmp_neu1e,
+			trainPairCM(vec_dim, vec0, obj1, vecs1, cm_params, alpha, tmp_neu1e,
 				tmp_cme, generator, update0, update1, update_cm_params);
 		}
 
@@ -62,16 +62,16 @@ public:
 		}
 	}
 
-	void TrainEdgeMatrix(int dim0, int dim1, float *vec0, int obj1, float **vecs1, float *matrix, float alpha, float *tmp_neu1e,
+	void TrainPairMatrix(int dim0, int dim1, float *vec0, int obj1, float **vecs1, float *matrix, float alpha, float *tmp_neu1e,
 		std::default_random_engine &generator, bool update0 = true, bool update1 = true, bool update_matrix = true);
 
 	void CheckObject(int vec_dim, float *cur_vec, float **vecs1);
 
 private:
-	void trainEdgeCM(int vec_dim, float *vec0, int obj1, float **vecs1, float *cm_params,
+	void trainPairCM(int vec_dim, float *vec0, int obj1, float **vecs1, float *cm_params,
 		float alpha, float *tmp_neu1e, float *tmp_cme, std::default_random_engine &generator,
 		bool update0, bool update1, bool update_cm_params);
-	void trainEdgeCMComplement(int vec_dim, float *vec0, int obj1, float **vecs1, float *cm_params,
+	void trainPairCMComplement(int vec_dim, float *vec0, int obj1, float **vecs1, float *cm_params,
 		float alpha, float *tmp_neu1e, float *tmp_cme, std::default_random_engine &generator,
 		bool update0, bool update1, bool update_cm_params);
 

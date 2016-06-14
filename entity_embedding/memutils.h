@@ -1,5 +1,5 @@
-#ifndef MEM_UTILS_H_
-#define MEM_UTILS_H_
+#ifndef MEMUTILS_H_
+#define MEMUTILS_H_
 
 namespace MemUtils
 {

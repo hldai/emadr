@@ -1,4 +1,4 @@
-#include "exp_table.h"
+#include "exptable.h"
 
 #include <cmath>
 

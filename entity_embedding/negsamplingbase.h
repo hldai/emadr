@@ -1,7 +1,7 @@
 #ifndef NEGSAMPLINGBASE_H_
 #define NEGSAMPLINGBASE_H_
 
-#include "exp_table.h"
+#include "exptable.h"
 
 #include <random>
 

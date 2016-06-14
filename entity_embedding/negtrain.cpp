@@ -1,11 +1,11 @@
-#include "negative_sampling_trainer.h"
+#include "negtrain.h"
 
 #include <cassert>
 #include <cmath>
 
-#include "math_utils.h"
+#include "mathutils.h"
 
-float *NegativeSamplingTrainer::GetInitedCMParams(int vec_dim)
+float *NegTrain::GetInitedCMParams(int vec_dim)
 {
 	float *cm_params = new float[vec_dim];
 	for (int i = 0; i < vec_dim; ++i)
@@ -13,7 +13,7 @@ float *NegativeSamplingTrainer::GetInitedCMParams(int vec_dim)
 	return cm_params;
 }
 
-void NegativeSamplingTrainer::InitMatrix(float *matrix, int dim0, int dim1)
+void NegTrain::InitMatrix(float *matrix, int dim0, int dim1)
 {
 	std::default_random_engine generator(1217);
 	float rand_val = 4.0f * sqrtf(6.0f / (dim0 + dim1));
@@ -22,25 +22,25 @@ void NegativeSamplingTrainer::InitMatrix(float *matrix, int dim0, int dim1)
 		matrix[i] = distribution(generator);
 }
 
-NegativeSamplingTrainer::NegativeSamplingTrainer(ExpTable *exp_table, int num_objs1, int num_negative_samples,
+NegTrain::NegTrain(ExpTable *exp_table, int num_objs1, int num_negative_samples,
 	int *obj_cnts) : NegSamplingBase(exp_table, num_negative_samples),
 	num_objs1_(num_objs1)
 {
 	initNegativeSamplingDist(num_objs1, obj_cnts, negative_sample_dist_);
 }
 
-NegativeSamplingTrainer::NegativeSamplingTrainer(ExpTable *exp_table, int num_negative_samples,
+NegTrain::NegTrain(ExpTable *exp_table, int num_negative_samples,
 	const char *freq_file) : NegSamplingBase(exp_table, num_negative_samples)
 {
 	loadFreqFile(freq_file, num_objs1_, negative_sample_dist_);
 }
 
-NegativeSamplingTrainer::~NegativeSamplingTrainer()
+NegTrain::~NegTrain()
 {
 }
 
-void NegativeSamplingTrainer::TrainEdge(int vec_dim, float *vec0, int obj1, float **vecs1, float alpha, float *tmp_neu1e,
-	std::default_random_engine &generator, bool update0, bool update1)
+void NegTrain::TrainPair(int vec_dim, float *vec0, int obj1, float **vecs1, float alpha, float *tmp_neu1e,
+	std::default_random_engine &generator, float gamma, bool update0, bool update1)
 {
 	for (int i = 0; i < vec_dim; ++i)
 		tmp_neu1e[i] = 0.0f;
@@ -59,7 +59,7 @@ void NegativeSamplingTrainer::TrainEdge(int vec_dim, float *vec0, int obj1, floa
 		}
 
 		float dot_product = MathUtils::DotProduct(vec0, vecs1[target], vec_dim);
-		float g = (label - exp_table_->getSigmaValue(dot_product)) * alpha;
+		float g = (label - exp_table_->getSigmaValue(dot_product)) * alpha * gamma;
 
 		for (int j = 0; j < vec_dim; ++j)
 			tmp_neu1e[j] += g * vecs1[target][j];
@@ -73,7 +73,7 @@ void NegativeSamplingTrainer::TrainEdge(int vec_dim, float *vec0, int obj1, floa
 			vec0[j] += tmp_neu1e[j] - lambda * vec0[j];
 }
 
-//void NegativeSamplingTrainer::TrainEdgeCM(int vec_dim, float *vec0, int obj1, float **vecs1, float *cm_params, bool complement,
+//void NegTrain::TrainPairCM(int vec_dim, float *vec0, int obj1, float **vecs1, float *cm_params, bool complement,
 //	float alpha, float *tmp_neu1e, float *tmp_cme, std::default_random_engine &generator, bool update0, 
 //	bool update1, bool update_cm_params)
 //{
@@ -134,7 +134,7 @@ void NegativeSamplingTrainer::TrainEdge(int vec_dim, float *vec0, int obj1, floa
 //			cm_params[i] += tmp_cme[i] - lambda * cm_params[i];
 //}
 
-void NegativeSamplingTrainer::TrainEdgeMatrix(int dim0, int dim1, float *vec0, int obj1, float **vecs1, float *matrix, float alpha,
+void NegTrain::TrainPairMatrix(int dim0, int dim1, float *vec0, int obj1, float **vecs1, float *matrix, float alpha,
 	float *tmp_neu1e, std::default_random_engine &generator, bool update0, bool update1, bool update_matrix)
 {
 	if (update0)
@@ -181,7 +181,7 @@ void NegativeSamplingTrainer::TrainEdgeMatrix(int dim0, int dim1, float *vec0, i
 			vec0[j] += tmp_neu1e[j] - nf * alpha * vec0[j];
 }
 
-void NegativeSamplingTrainer::CheckObject(int vec_dim, float *cur_vec, float **vecs1)
+void NegTrain::CheckObject(int vec_dim, float *cur_vec, float **vecs1)
 {
 	const int k = 10;
 	int top_indices[k];
@@ -215,7 +215,7 @@ void NegativeSamplingTrainer::CheckObject(int vec_dim, float *cur_vec, float **v
 	}
 }
 
-void NegativeSamplingTrainer::CloseVectors(float **vecs, int num_vecs, int vec_dim, int idx)
+void NegTrain::CloseVectors(float **vecs, int num_vecs, int vec_dim, int idx)
 {
 	const int k = 10;
 	int top_indices[k];
@@ -252,7 +252,7 @@ void NegativeSamplingTrainer::CloseVectors(float **vecs, int num_vecs, int vec_d
 	}
 }
 
-void NegativeSamplingTrainer::trainEdgeCM(int vec_dim, float *vec0, int obj1, float **vecs1, float *cm_params,
+void NegTrain::trainPairCM(int vec_dim, float *vec0, int obj1, float **vecs1, float *cm_params,
 	float alpha, float *tmp_neu1e, float *tmp_cme, std::default_random_engine &generator,
 	bool update0 = true, bool update1 = true, bool update_cm_params = true)
 {
@@ -317,7 +317,7 @@ void NegativeSamplingTrainer::trainEdgeCM(int vec_dim, float *vec0, int obj1, fl
 			cm_params[i] += tmp_cme[i] - lambda * (cm_params[i] - 0.5f);
 }
 
-void NegativeSamplingTrainer::trainEdgeCMComplement(int vec_dim, float *vec0, int obj1, float **vecs1, float *cm_params,
+void NegTrain::trainPairCMComplement(int vec_dim, float *vec0, int obj1, float **vecs1, float *cm_params,
 	float alpha, float *tmp_neu1e, float *tmp_cme, std::default_random_engine &generator,
 	bool update0 = true, bool update1 = true, bool update_cm_params = true)
 {

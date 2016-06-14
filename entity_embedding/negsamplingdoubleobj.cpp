@@ -12,7 +12,7 @@ NegSamplingDoubleObj::~NegSamplingDoubleObj()
 {
 }
 
-void NegSamplingDoubleObj::TrainEdge(int dim0, int dim1, float *vec_in, int obj_out0, float **vecs_out0, int obj_out1,
+void NegSamplingDoubleObj::TrainPair(int dim0, int dim1, float *vec_in, int obj_out0, float **vecs_out0, int obj_out1,
 	float **vecs_out1, float alpha, float *tmp_neu1e, std::default_random_engine &generator,
 	bool update_in, bool update_out)
 {

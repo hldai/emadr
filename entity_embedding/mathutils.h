@@ -1,5 +1,5 @@
-#ifndef MATH_UTILS_H_
-#define MATH_UTILS_H_
+#ifndef MATHUTILS_H_
+#define MATHUTILS_H_
 
 #include <cmath>
 
