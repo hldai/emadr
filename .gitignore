@@ -91,4 +91,5 @@ entity_embedding/x64/
 *.vcxproj
 *.filters
 *.db
+*.user
 
