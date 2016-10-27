@@ -230,7 +230,7 @@ void EADocVecTrainer::allJoint(int seed, long long num_samples_per_round, std::d
 			{
 				dw_sampler_->SamplePair(va, vb, generator, rand_gen);
 				word_ns_trainer.TrainPair(word_vec_dim_, dw_vecs_[va], vb, word_vecs_,
-					alpha, tmp_neu1e, generator, 0.12f);
+					alpha, tmp_neu1e, generator, 0.8);
 			}
 		}
 	}

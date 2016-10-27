@@ -5,10 +5,9 @@
 #include <cassert>
 #include <thread>
 #include <iostream>
+#include <map>
 
-//#include "entity_set_trainer.h"
 #include "ioutils.h"
-//#include "joint_trainer.h"
 #include "mathutils.h"
 #include "pairsampler.h"
 #include "eadocvectrainer.h"
@@ -28,50 +27,10 @@ void TrainDocWordVectors()
 	int num_negative_samples = 10;
 	float starting_alpha = 0.06f;
 
-	//const char *doc_words_file_name = "e:/dc/20ng_bydate/all_docs_dw_short.bin";
-	//const char *word_cnts_file = "e:/dc/20ng_bydate/word_cnts.bin";
-	//const char *word_vecs_file_name = "e:/dc/20ng_bydate/vecs/word_vecs.bin";
-	//const char *dst_vec_file_name = "e:/dc/20ng_bydate/vecs/doc_vec_cpp_ea.bin";
-
-	//const char *doc_words_file_name = "e:/dc/el/tac/tac_2010_train_docs_bow.bin";
-	//const char *word_cnts_file = "e:/dc/el/wiki/word_cnts.bin";
-	//const char *word_vecs_file_name = "e:/dc/el/vecs/word_vecs.bin";
-	//const char *dst_vec_file_name = "e:/dc/el/vecs/tac_2010_train_dw_vecs.bin";
-
-	//const char *doc_words_file_name = "e:/dc/el/tac/tac_2009_eval_docs_bow.bin";
-	//const char *word_cnts_file = "e:/dc/el/wiki/word_cnts.bin";
-	//const char *word_vecs_file_name = "e:/dc/el/vecs/word_vecs_4.bin";
-	//const char *dst_vec_file_name = "e:/dc/el/vecs/tac_2009_eval_dw_vecs_4.bin";
-
 	const char *doc_words_file_name = "e:/dc/el/tac/2010/train/dw.bin";
 	const char *word_cnts_file = "e:/dc/el/wiki/word_cnts.bin";
 	const char *word_vecs_file_name = "e:/dc/el/vecs/word_vecs_3.bin";
 	const char *dst_vec_file_name = "e:/dc/el/vecs/2010/train_3_dw_vecs.bin";
-
-	//const char *doc_words_file_name = "e:/dc/el/tac/2010/train/de.bin";
-	//const char *word_cnts_file = "e:/dc/el/wiki/entity_cnts.bin";
-	//const char *word_vecs_file_name = "e:/dc/el/vecs/entity_vecs_3.bin";
-	//const char *dst_vec_file_name = "e:/dc/el/vecs/2010/train_3_de_vecs.bin";
-
-	//const char *doc_words_file_name = "e:/dc/el/tac/tac_2009_eval_entities.bin";
-	//const char *word_cnts_file = "e:/dc/el/wiki/entity_cnts.bin";
-	//const char *word_vecs_file_name = "e:/dc/el/vecs/entity_vecs_3.bin";
-	//const char *dst_vec_file_name = "e:/dc/el/vecs/tac_2009_eval_entity_vecs_3.bin";
-
-	//const char *doc_words_file_name = "e:/dc/el/tac/tac_2009_eval_docs_bow.bin";
-	//const char *word_cnts_file = "e:/dc/el/wiki/word_cnts.bin";
-	//const char *word_vecs_file_name = "e:/dc/el/vecs/word_vecs_4.bin";
-	//const char *dst_vec_file_name = "e:/dc/el/vecs/tac_2009_eval_4_vecs.bin";
-
-	//const char *doc_words_file_name = "e:/dc/el/tac/tac_2010_eval_docs_bow.bin";
-	//const char *word_cnts_file = "e:/dc/el/wiki/word_cnts.bin";
-	//const char *word_vecs_file_name = "e:/dc/el/vecs/word_vecs_3.bin";
-	//const char *dst_vec_file_name = "e:/dc/el/vecs/tac_2010_eval_3_vecs.bin";
-
-	//const char *doc_words_file_name = "e:/dc/el/tac/tac_2010_train_docs_bow.bin";
-	//const char *word_cnts_file = "e:/dc/el/wiki/word_cnts.bin";
-	//const char *word_vecs_file_name = "e:/dc/el/vecs/word_vecs_4.bin";
-	//const char *dst_vec_file_name = "e:/dc/el/vecs/tac_2010_train_4_vecs.bin";
 
 	EADocVecTrainer trainer(num_rounds, num_threads, num_negative_samples, starting_alpha);
 	trainer.TrainDocWordFixedWordVecs(doc_words_file_name, word_cnts_file, word_vecs_file_name, 
@@ -174,14 +133,14 @@ void configFiles(DataSet data_set, const char *&ee_file, const char *&de_file, c
 		//ee_file = "e:/dc/20ng_bydate/bin/entity_adj_list.bin";
 		//de_file = "e:/dc/20ng_bydate/bin/doc_entities_short.bin";
 		//entity_cnts_file = "e:/dc/20ng_bydate/bin/entity_cnts.bin";
-		ee_file = "e:/dc/20ng_bydate/bin/ee-ner.bin";
-		de_file = "e:/dc/20ng_bydate/bin/de-ner.bin";
-		dw_file = "e:/dc/20ng_bydate/bin/dw.bin";
-		entity_cnts_file = "e:/dc/20ng_bydate/bin/entity-cnts-ner.bin";
-		word_cnts_file = "e:/dc/20ng_bydate/bin/word-cnts.bin";
-		dst_doc_vecs_file = "e:/dc/20ng_bydate/vecs/dw-vecs.bin";
-		dst_word_vecs_file = "e:/dc/20ng_bydate/vecs/word-vecs-ner.bin";
-		dst_entity_vecs_file = "e:/dc/20ng_bydate/vecs/entity-vecs-ner.bin";
+		ee_file = "e:/data/emadr/20ng_bydate/bin/ee-ner.bin";
+		de_file = "e:/data/emadr/20ng_bydate/bin/de-ner.bin";
+		dw_file = "e:/data/emadr/20ng_bydate/bin/dw.bin";
+		entity_cnts_file = "e:/data/emadr/20ng_bydate/bin/entity-cnts-ner.bin";
+		word_cnts_file = "e:/data/emadr/20ng_bydate/bin/word-cnts.bin";
+		dst_doc_vecs_file = "e:/data/emadr/20ng_bydate/vecs/dew-vecs.bin";
+		dst_word_vecs_file = "e:/data/emadr/20ng_bydate/vecs/word-vecs-ner.bin";
+		dst_entity_vecs_file = "e:/data/emadr/20ng_bydate/vecs/entity-vecs-ner.bin";
 		break;
 	case WIN_NYT:
 		dw_file = "e:/dc/nyt-world-full/processed/bin/dw.bin";
@@ -218,37 +177,82 @@ void configFiles(DataSet data_set, const char *&ee_file, const char *&de_file, c
 	}
 }
 
+char *GetArgValue(int argc, char **argv, const char *arg)
+{
+	for (int i = 0; i < argc - 1; ++i)
+	{
+		if (strcmp(argv[i], arg) == 0)
+			return argv[i + 1];
+	}
+	return 0;
+}
+
+int GetIntArgValue(int argc, char **argv, const char *arg, int def_val)
+{
+	char *arg_val = GetArgValue(argc, argv, arg);
+	if (arg_val)
+		return atoi(arg_val);
+	return def_val;
+}
+
+float GetFloatArgValue(int argc, char **argv, const char *arg, float def_val)
+{
+	char *arg_val = GetArgValue(argc, argv, arg);
+	if (arg_val)
+		return atof(arg_val);
+	return def_val;
+}
+
 void EATrain(int argc, char **argv)
 {
 	const char *ee_file, *de_file, *dw_file, *entity_cnts_file, *word_cnts_file, 
 		*dst_doc_vecs_file, *dst_word_vecs_file,
 		*dst_entity_vecs_file;
 
-	DataSet data_set = DataSet::WIN_NYT;
-	configFiles(data_set, ee_file, de_file, dw_file, entity_cnts_file, word_cnts_file,
-		dst_doc_vecs_file, dst_word_vecs_file, dst_entity_vecs_file);
-
 	bool share_doc_vec = 1;
 
-	int doc_vec_dim = 100;
-	int num_rounds = 20;
-	int num_threads = 4;
-	int num_negative_samples = 10;
-	float starting_alpha = 0.06f;
-	float min_alpha = 0.0001f;
+	int doc_vec_dim = GetIntArgValue(argc, argv, "-d", 100);
+	int num_rounds = GetIntArgValue(argc, argv, "-r", 10);
+	int num_threads = GetIntArgValue(argc, argv, "-t", 2);
+	int num_negative_samples = GetIntArgValue(argc, argv, "-n", 10);
+	float starting_alpha = GetFloatArgValue(argc, argv, "-sa", 0.06f);
+	float min_alpha = GetFloatArgValue(argc, argv, "-ma", 0.0001f);
 
-	if (argc >= 7)
+	ee_file = GetArgValue(argc, argv, "-ee");
+	de_file = GetArgValue(argc, argv, "-de");
+	dw_file = GetArgValue(argc, argv, "-dw");
+	entity_cnts_file = GetArgValue(argc, argv, "-ecnt");
+	word_cnts_file = GetArgValue(argc, argv, "-wcnt");
+	dst_doc_vecs_file = GetArgValue(argc, argv, "-docvec");
+	dst_word_vecs_file = GetArgValue(argc, argv, "-wordvec");
+	dst_entity_vecs_file = GetArgValue(argc, argv, "-entityvec");
+
+	if (!ee_file)
 	{
-		doc_vec_dim = atoi(argv[1]);
-		num_rounds = atoi(argv[2]);
-		num_threads = atoi(argv[3]);
-		num_negative_samples = atoi(argv[4]);
-		starting_alpha = (float)atof(argv[5]);
-		min_alpha = (float)atof(argv[6]);
-		if (argc == 8)
-			dst_doc_vecs_file = argv[7];
+		DataSet data_set = DataSet::WIN_20NG;
+		configFiles(data_set, ee_file, de_file, dw_file, entity_cnts_file, word_cnts_file,
+			dst_doc_vecs_file, dst_word_vecs_file, dst_entity_vecs_file);
 	}
 
+	//if (argc >= 7)
+	//{
+	//	doc_vec_dim = atoi(argv[1]);
+	//	num_rounds = atoi(argv[2]);
+	//	num_threads = atoi(argv[3]);
+	//	num_negative_samples = atoi(argv[4]);
+	//	starting_alpha = (float)atof(argv[5]);
+	//	min_alpha = (float)atof(argv[6]);
+	//	if (argc == 8)
+	//		dst_doc_vecs_file = argv[7];
+	//}
+	//else
+	//{
+	//	DataSet data_set = DataSet::WIN_20NG;
+	//	configFiles(data_set, ee_file, de_file, dw_file, entity_cnts_file, word_cnts_file,
+	//		dst_doc_vecs_file, dst_word_vecs_file, dst_entity_vecs_file);
+	//}
+
+	printf("ee_file: %s\nde_file: %s\ndw_file: %s\n", ee_file, de_file, dw_file);
 	printf("vec_dim: %d\nnum_rounds: %d\nnum_threads: %d\nnum_neg_samples: %d\nstarting_alpha: %f\nmin_alpha: %f\n",
 		doc_vec_dim, num_rounds, num_threads, num_negative_samples, starting_alpha, min_alpha);
 
