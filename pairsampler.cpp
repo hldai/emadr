@@ -15,6 +15,7 @@ PairSampler::PairSampler(const char *adj_list_file_name)
 
 	fread(&num_vertex_left_, sizeof(int), 1, fp);
 	fread(&num_vertex_right_, sizeof(int), 1, fp);
+	printf("left: %d right: %d\n", num_vertex_left_, num_vertex_right_);
 
 	//right_vertex_dists_ = new std::discrete_distribution<int>[num_vertex_left_];
 	right_vertex_samplers_ = new MultinomialSampler[num_vertex_left_];

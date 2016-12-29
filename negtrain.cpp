@@ -71,6 +71,11 @@ void NegTrain::TrainPair(int vec_dim, float *vec0, int obj1, float **vecs1, floa
 	if (update0)
 		for (int j = 0; j < vec_dim; ++j)
 			vec0[j] += tmp_neu1e[j] - lambda * vec0[j];
+	//if (update0)
+	//	printf("update0");
+	//for (int j = 0; j < vec_dim; ++j)
+	//	printf("%f ", vec0[j]);
+	//printf("\n");
 }
 
 //void NegTrain::TrainPairCM(int vec_dim, float *vec0, int obj1, float **vecs1, float *cm_params, bool complement,

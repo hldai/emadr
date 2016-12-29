@@ -14,8 +14,8 @@ EADocVecTrainer::EADocVecTrainer(int num_rounds, int num_threads, int num_negati
 
 void EADocVecTrainer::AllJointThreaded(const char *ee_file, const char *de_file,
 	const char *dw_file, const char *entity_cnts_file, const char *word_cnts_file, 
-	int vec_dim, bool shared, const char *dst_dedw_vec_file_name, const char *dst_word_vecs_file_name,
-	const char *dst_entity_vecs_file_name)
+	int vec_dim, bool shared, float weight_ee, float weight_de, float weight_dw, const char *dst_dedw_vec_file_name, 
+	const char *dst_word_vecs_file_name, const char *dst_entity_vecs_file_name)
 {
 	initDocEntityList(de_file);
 	initDocWordList(dw_file);
@@ -69,9 +69,10 @@ void EADocVecTrainer::AllJointThreaded(const char *ee_file, const char *de_file,
 	for (int i = 0; i < num_threads_; ++i)
 	{
 		int cur_seed = seeds[i];
-		threads[i] = std::thread([&, cur_seed, num_samples_per_round]
+		threads[i] = std::thread([&, cur_seed, num_samples_per_round, weight_ee, weight_de, weight_dw]
 		{
-			allJoint(cur_seed, num_samples_per_round, list_sample_dist, entity_ns_trainer, word_ns_trainer);
+			allJoint(cur_seed, num_samples_per_round, weight_ee, weight_de, weight_dw,
+				list_sample_dist, entity_ns_trainer, word_ns_trainer);
 		});
 	}
 	for (int i = 0; i < num_threads_; ++i)
@@ -144,6 +145,28 @@ void EADocVecTrainer::TrainDocWord(const char *doc_words_file_name, const char *
 		IOUtils::SaveVectors(word_vecs_, word_vec_dim_, num_words_, dst_word_vecs_file_name);
 }
 
+void EADocVecTrainer::TrainEmadrNewDocs2(const char * doc_words_file, const char * doc_entities_file, const char * word_cnts_file, 
+	const char * entity_cnts_file, const char * word_vecs_file_name, const char * entity_vecs_file_name, int vec_dim, 
+	const char * dst_doc_vecs_file)
+{
+	TrainDocWordFixedWordVecs(doc_entities_file, entity_cnts_file, entity_vecs_file_name,
+		vec_dim, 0);
+
+	//for (int i = 0; i < 5; ++i) {
+	//	for (int j = 0; j < vec_dim; ++j) {
+	//		printf("%f ", dw_vecs_[i][j]);
+	//	}
+	//	printf("\n");
+	//}
+
+	float **tmpvecs = dw_vecs_;
+	dw_vecs_ = de_vecs_;
+	de_vecs_ = tmpvecs;
+	TrainDocWordFixedWordVecs(doc_words_file, word_cnts_file, word_vecs_file_name,
+		vec_dim, 0);
+	saveConcatnatedVectors(de_vecs_, dw_vecs_, num_docs_, vec_dim, dst_doc_vecs_file);
+}
+
 void EADocVecTrainer::TrainDocWordFixedWordVecs(const char *doc_words_file_name, const char *word_cnts_file,
 	const char *word_vecs_file_name, int vec_dim, const char *dst_doc_vecs_file_name)
 {
@@ -165,6 +188,13 @@ void EADocVecTrainer::TrainDocWordFixedWordVecs(const char *doc_words_file_name,
 	printf("inited.\n");
 
 	trainDocWordMT(word_cnts_file, false, dst_doc_vecs_file_name);
+
+	//for (int i = 0; i < 5; ++i) {
+	//	for (int j = 0; j < vec_dim; ++j) {
+	//		printf("%f ", dw_vecs_[i][j]);
+	//	}
+	//	printf("\n");
+	//}
 }
 
 void EADocVecTrainer::saveConcatnatedVectors(float **vecs0, float **vecs1, int num_vecs, int vec_dim,
@@ -186,7 +216,8 @@ void EADocVecTrainer::saveConcatnatedVectors(float **vecs0, float **vecs1, int n
 	fclose(fp);
 }
 
-void EADocVecTrainer::allJoint(int seed, long long num_samples_per_round, std::discrete_distribution<int> &list_sample_dist,
+void EADocVecTrainer::allJoint(int seed, long long num_samples_per_round, float weight_ee, float weight_de, float weight_dw,
+	std::discrete_distribution<int> &list_sample_dist,
 	NegTrain &entity_ns_trainer, NegTrain &word_ns_trainer)
 {
 	//printf("seed %d samples_per_round %d. training...\n", seed, num_samples_per_round);
@@ -216,21 +247,21 @@ void EADocVecTrainer::allJoint(int seed, long long num_samples_per_round, std::d
 			{
 				ee_sampler_->SamplePair(va, vb, generator, rand_gen);
 				entity_ns_trainer.TrainPair(entity_vec_dim_, ee_vecs0_[va], vb, ee_vecs1_,
-					alpha, tmp_neu1e, generator, 1);
+					alpha, tmp_neu1e, generator, weight_ee);
 				entity_ns_trainer.TrainPair(entity_vec_dim_, ee_vecs0_[vb], va, ee_vecs1_,
-					alpha, tmp_neu1e, generator, 1);
+					alpha, tmp_neu1e, generator, weight_ee);
 			}
 			else if (list_idx == 1)
 			{
 				de_sampler_->SamplePair(va, vb, generator, rand_gen);
 				entity_ns_trainer.TrainPair(entity_vec_dim_, de_vecs_[va], vb, ee_vecs0_,
-					alpha, tmp_neu1e, generator, 1);
+					alpha, tmp_neu1e, generator, weight_de);
 			}
 			else if (list_idx == 2)
 			{
 				dw_sampler_->SamplePair(va, vb, generator, rand_gen);
 				word_ns_trainer.TrainPair(word_vec_dim_, dw_vecs_[va], vb, word_vecs_,
-					alpha, tmp_neu1e, generator, 0.8);
+					alpha, tmp_neu1e, generator, weight_dw);
 			}
 		}
 	}
@@ -262,7 +293,8 @@ void EADocVecTrainer::trainDocWordMT(const char *word_cnts_file, bool update_wor
 		threads[i].join();
 	printf("\n");
 
-	IOUtils::SaveVectors(dw_vecs_, word_vec_dim_, num_docs_, dst_doc_vecs_file_name);
+	if (dst_doc_vecs_file_name)
+		IOUtils::SaveVectors(dw_vecs_, word_vec_dim_, num_docs_, dst_doc_vecs_file_name);
 }
 
 void EADocVecTrainer::trainDocWordList(int seed, long long num_samples_per_round, bool update_word_vecs, 
@@ -291,8 +323,10 @@ void EADocVecTrainer::trainDocWordList(int seed, long long num_samples_per_round
 				alpha = starting_alpha_ + (min_alpha_ - starting_alpha_) * cur_num_samples / total_num_samples;
 
 			dw_sampler_->SamplePair(va, vb, generator, rand_gen);
+			//if (va == 0)
+			//	printf("%d %d\n", va, vb);
 			word_ns_trainer.TrainPair(word_vec_dim_, dw_vecs_[va], vb, word_vecs_,
-				alpha, tmp_neu1e, generator, true, update_word_vecs);
+				alpha, tmp_neu1e, generator, 1, true, update_word_vecs);
 		}
 	}
 
@@ -366,13 +400,13 @@ void EADocVecTrainer::trainDWETh(int seed, long long num_samples_per_round, bool
 			{
 				de_sampler_->SamplePair(va, vb, generator, rand_gen);
 				entity_ns_trainer.TrainPair(entity_vec_dim_, de_vecs_[va], vb, ee_vecs0_,
-					alpha, tmp_neu1e, generator, true, update_entity_vecs);
+					alpha, tmp_neu1e, generator, 1, true, update_entity_vecs);
 			}
 			else if (list_idx == 1)
 			{
 				dw_sampler_->SamplePair(va, vb, generator, rand_gen);
 				word_ns_trainer.TrainPair(word_vec_dim_, dw_vecs_[va], vb, word_vecs_,
-					alpha, tmp_neu1e, generator, true, update_word_vecs);
+					alpha, tmp_neu1e, generator, 1, true, update_word_vecs);
 			}
 		}
 	}
